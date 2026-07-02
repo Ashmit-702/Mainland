@@ -1,12 +1,7 @@
-# POST /api/dialogue
-# Body: { npc_name, npc_role, player_line, history }
-# Returns: { reply }
-
-import json, sys, os
+import json, os
 from http.server import BaseHTTPRequestHandler
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from gemini import generate
+SYSTEM_PROMPT = "You are the narrative engine for Mainland, a mythic RPG. The player is Arjun. Stay in character, reply under 35 words, mythic tone, never break the fourth wall."
 
 FALLBACKS = {
     "Draupadi": "Arjun, the Mainland crumbles. Seek the Brahmastra.",
@@ -16,6 +11,22 @@ FALLBACKS = {
     "Bhima":    "Brother! I cleared half this floor already.",
 }
 
+def _generate(prompt):
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        return ""
+    try:
+        from google import genai
+        client = genai.Client(api_key=key)
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt,
+            config={"system_instruction": SYSTEM_PROMPT, "max_output_tokens": 100, "temperature": 0.9}
+        )
+        return (resp.text or "").strip().strip('"')
+    except Exception as e:
+        print(e)
+        return ""
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
@@ -23,27 +34,14 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body   = json.loads(self.rfile.read(length))
-
+        body        = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
         npc_name    = body.get("npc_name", "Stranger")
         npc_role    = body.get("npc_role", "wanderer")
         player_line = body.get("player_line", "Hello")
         history     = body.get("history", [])[-6:]
-
-        history_txt = "\n".join(
-            f"Arjun: {m['player']}\n{npc_name}: {m['npc']}"
-            for m in history
-        )
-        prompt = (
-            f"You are voicing {npc_name}, a {npc_role} figure in Mainland.\n"
-            f"Conversation so far:\n{history_txt}\n\n"
-            f"Arjun says: \"{player_line}\"\n"
-            f"Reply only with {npc_name}'s spoken line, no quotes, no name prefix."
-        )
-
-        reply = generate(prompt) or FALLBACKS.get(npc_name, "The wind swallows my words.")
-
+        history_txt = "\n".join(f"Arjun: {m['player']}\n{npc_name}: {m['npc']}" for m in history)
+        prompt      = f"You are {npc_name}, a {npc_role}.\n{history_txt}\nArjun: \"{player_line}\"\nReply as {npc_name} only, no name prefix."
+        reply       = _generate(prompt) or FALLBACKS.get(npc_name, "The winds drown my words, Arjun.")
         self.send_response(200)
         self._cors()
         self.send_header("Content-Type", "application/json")

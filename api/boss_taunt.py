@@ -1,17 +1,28 @@
-# POST /api/boss_taunt
-# Body: { boss_name, lore }
-# Returns: { taunt }
-
-import json, sys, os
+import json, os
 from http.server import BaseHTTPRequestHandler
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
-from gemini import generate
+SYSTEM_PROMPT = "You are the narrative engine for Mainland, a mythic RPG. Stay in character, reply under 25 words, menacing tone directed at Arjun."
 
 FALLBACKS = {
     "Duryodhana": "Your arrows cannot pierce the iron of Hastinapur, Arjun.",
     "Kali":       "You dare enter the age of darkness? I am the darkness.",
 }
+
+def _generate(prompt):
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        return ""
+    try:
+        from google import genai
+        client = genai.Client(api_key=key)
+        resp = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt,
+            config={"system_instruction": SYSTEM_PROMPT, "max_output_tokens": 60, "temperature": 0.9}
+        )
+        return (resp.text or "").strip().strip('"')
+    except Exception as e:
+        print(e)
+        return ""
 
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -20,20 +31,11 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        length = int(self.headers.get("Content-Length", 0))
-        body   = json.loads(self.rfile.read(length))
-
+        body      = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))))
         boss_name = body.get("boss_name", "Demon")
         lore      = body.get("lore", "")
-
-        prompt = (
-            f"You are voicing {boss_name}, a fearsome boss in Mainland ({lore}). "
-            f"Give a single menacing taunt under 25 words directed at Arjun. "
-            f"Pure dialogue only, no quotes, no name prefix."
-        )
-
-        taunt = generate(prompt, max_tokens=60) or FALLBACKS.get(boss_name, "Face your end, mortal.")
-
+        prompt    = f"You are {boss_name} ({lore}). One menacing taunt under 25 words to Arjun as battle begins. No name prefix."
+        taunt     = _generate(prompt) or FALLBACKS.get(boss_name, "Face your end, mortal.")
         self.send_response(200)
         self._cors()
         self.send_header("Content-Type", "application/json")

@@ -1,13 +1,8 @@
 {
-  "functions": {
-    "api/dialogue.py":   { "runtime": "vercel-python@4.x" },
-    "api/boss_taunt.py": { "runtime": "vercel-python@4.x" },
-    "api/floor.py":      { "runtime": "vercel-python@4.x" }
-  },
+  "version": 2,
   "rewrites": [
     { "source": "/api/dialogue",   "destination": "/api/dialogue.py"   },
     { "source": "/api/boss_taunt", "destination": "/api/boss_taunt.py" },
-    { "source": "/api/floor",      "destination": "/api/floor.py"      },
-    { "source": "/(.*)",           "destination": "/$1"                }
+    { "source": "/api/floor",      "destination": "/api/floor.py"      }
   ]
 }
