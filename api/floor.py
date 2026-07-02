@@ -155,26 +155,29 @@ def generate_dungeon(floor_number=1, seed=None):
     }
 
 
-def handler(request, response):
-    if request.method == "OPTIONS":
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        response.status_code = 204
-        return response
+import random
+from http.server import BaseHTTPRequestHandler
 
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Content-Type"] = "application/json"
+class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
 
-    try:
-        body = json.loads(request.body)
+    def do_POST(self):
+        import json
+        length = int(self.headers.get("Content-Length", 0))
+        body   = json.loads(self.rfile.read(length))
         floor_number = int(body.get("floor_number", 1))
         seed         = body.get("seed", random.randint(0, 999999))
         data = generate_dungeon(floor_number, seed)
-        response.status_code = 200
-        response.body = json.dumps(data)
-    except Exception as e:
-        response.status_code = 500
-        response.body = json.dumps({"error": str(e)})
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
 
-    return response
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")

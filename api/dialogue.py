@@ -1,11 +1,10 @@
-# ─────────────────────────────────────────────
-#  POST /api/dialogue
-#  Body: { npc_name, npc_role, player_line, history: [{player,npc}] }
-#  Returns: { reply }
-# ─────────────────────────────────────────────
+# POST /api/dialogue
+# Body: { npc_name, npc_role, player_line, history }
+# Returns: { reply }
 
-import json
-import sys, os
+import json, sys, os
+from http.server import BaseHTTPRequestHandler
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
 from gemini import generate
 
@@ -17,30 +16,25 @@ FALLBACKS = {
     "Bhima":    "Brother! I cleared half this floor already.",
 }
 
+class handler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
 
-def handler(request, response):
-    if request.method == "OPTIONS":
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type"
-        response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
-        response.status_code = 204
-        return response
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body   = json.loads(self.rfile.read(length))
 
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Content-Type"] = "application/json"
-
-    try:
-        body = json.loads(request.body)
-        npc_name   = body.get("npc_name", "Stranger")
-        npc_role   = body.get("npc_role", "wanderer")
+        npc_name    = body.get("npc_name", "Stranger")
+        npc_role    = body.get("npc_role", "wanderer")
         player_line = body.get("player_line", "Hello")
-        history    = body.get("history", [])[-6:]   # cap context
+        history     = body.get("history", [])[-6:]
 
         history_txt = "\n".join(
             f"Arjun: {m['player']}\n{npc_name}: {m['npc']}"
             for m in history
         )
-
         prompt = (
             f"You are voicing {npc_name}, a {npc_role} figure in Mainland.\n"
             f"Conversation so far:\n{history_txt}\n\n"
@@ -48,14 +42,15 @@ def handler(request, response):
             f"Reply only with {npc_name}'s spoken line, no quotes, no name prefix."
         )
 
-        reply = generate(prompt)
-        if not reply:
-            reply = FALLBACKS.get(npc_name, "The wind swallows my words, Arjun.")
+        reply = generate(prompt) or FALLBACKS.get(npc_name, "The wind swallows my words.")
 
-        response.status_code = 200
-        response.body = json.dumps({"reply": reply})
-    except Exception as e:
-        response.status_code = 500
-        response.body = json.dumps({"error": str(e), "reply": "..."})
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"reply": reply}).encode())
 
-    return response
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
