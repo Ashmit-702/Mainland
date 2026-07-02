@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mainland</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- MENU SCREEN -->
+  <div id="menu-screen" class="screen active">
+    <div class="menu-bg"></div>
+    <div class="menu-content">
+      <div class="title-eyebrow">A Mythic Dungeon Crawler</div>
+      <h1 class="game-title">MAINLAND</h1>
+      <p class="tagline">The Pandava realm fractures.<br>Demons of old myth walk free.<br>You are <em>Arjun</em>.</p>
+      <div class="menu-controls">
+        <button id="btn-start" class="btn-primary">Begin the Journey</button>
+        <div class="key-legend">
+          <span><kbd>WASD</kbd> Move</span>
+          <span><kbd>Space</kbd> Attack</span>
+          <span><kbd>E</kbd> Talk / Leave</span>
+          <span><kbd>Enter</kbd> Confirm</span>
+        </div>
+      </div>
+      <div class="ai-badge" id="ai-badge">⚡ Powered by Gemini AI</div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="screen">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD overlay -->
+    <div id="hud">
+      <div id="hud-left">
+        <div class="stat-name">ARJUN</div>
+        <div class="bar-wrap">
+          <div class="bar-label">HP</div>
+          <div class="bar-track"><div id="hp-bar" class="bar hp-bar"></div></div>
+          <div id="hp-text" class="bar-num">120/120</div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-label">XP</div>
+          <div class="bar-track"><div id="xp-bar" class="bar xp-bar"></div></div>
+        </div>
+        <div id="stat-row">Lv <span id="s-lv">1</span> · ATK <span id="s-atk">20</span> · DEF <span id="s-def">0</span> · <span id="s-gold">⛁ 0</span></div>
+      </div>
+      <div id="hud-center">
+        <div id="floor-label">Floor 1</div>
+      </div>
+      <div id="hud-right">
+        <div id="minimap-wrap"><canvas id="minimap" width="120" height="96"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Boss HP bar -->
+    <div id="boss-bar-wrap" class="hidden">
+      <div id="boss-name-label">Duryodhana</div>
+      <div class="boss-track"><div id="boss-hp-bar"></div></div>
+    </div>
+
+    <!-- Dialogue box -->
+    <div id="dialogue-wrap" class="hidden">
+      <div id="dialogue-speaker"></div>
+      <div id="dialogue-text"></div>
+      <div id="dialogue-input-wrap" class="hidden">
+        <input id="dialogue-input" type="text" maxlength="100" placeholder="Say something to them…" autocomplete="off" />
+        <button id="btn-send">Send</button>
+      </div>
+      <div id="dialogue-hint">[Space] Reply · [E] Leave</div>
+    </div>
+
+    <!-- Toast log -->
+    <div id="toast-log"></div>
+  </div>
+
+  <!-- OVERLAY SCREENS -->
+  <div id="gameover-screen" class="screen overlay hidden">
+    <div class="overlay-box">
+      <h2 class="overlay-title" style="color:#e05050">Arjun has fallen…</h2>
+      <p class="overlay-sub">The Mainland descends further into darkness.</p>
+      <button class="btn-primary" onclick="Game.restart()">Try Again</button>
+    </div>
+  </div>
+
+  <div id="victory-screen" class="screen overlay hidden">
+    <div class="overlay-box">
+      <h2 class="overlay-title" style="color:#d4aa3a">The Mainland is saved.</h2>
+      <p class="overlay-sub">Arjun's arrows have silenced the age of Kali.</p>
+      <button class="btn-primary" onclick="Game.restart()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="floor-clear-screen" class="screen overlay hidden">
+    <div class="overlay-box">
+      <h2 class="overlay-title" style="color:#d4aa3a">Floor Cleared</h2>
+      <p class="overlay-sub">Descend deeper into the Mainland…</p>
+      <button class="btn-primary" id="btn-descend">Descend</button>
+    </div>
+  </div>
+
+  <div id="loading-screen" class="screen overlay hidden">
+    <div class="overlay-box">
+      <div class="loading-spinner"></div>
+      <p class="overlay-sub" id="loading-text">Generating floor…</p>
+    </div>
+  </div>
+
+  <script src="entities.js"></script>
+  <script src="dungeon.js"></script>
+  <script src="ui.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
