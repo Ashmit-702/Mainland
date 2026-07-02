@@ -6,8 +6,8 @@
 
 import json
 import sys, os
-sys.path.insert(0, os.path.dirname(__file__))
-from _gemini import generate
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "lib"))
+from gemini import generate
 
 FALLBACKS = {
     "Duryodhana": "Your arrows cannot pierce the iron of Hastinapur, Arjun.",
