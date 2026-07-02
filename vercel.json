@@ -1,16 +1,7 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "api/dialogue.py",  "use": "@vercel/python" },
-    { "src": "api/boss_taunt.py","use": "@vercel/python" },
-    { "src": "api/floor.py",     "use": "@vercel/python" },
-    { "src": "public/**",        "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/dialogue",   "dest": "/api/dialogue.py"   },
-    { "src": "/api/boss_taunt", "dest": "/api/boss_taunt.py" },
-    { "src": "/api/floor",      "dest": "/api/floor.py"      },
-    { "src": "/(.*)",           "dest": "/public/$1"         },
-    { "src": "/",               "dest": "/public/index.html" }
+  "rewrites": [
+    { "source": "/api/dialogue",   "destination": "/api/dialogue.py"   },
+    { "source": "/api/boss_taunt", "destination": "/api/boss_taunt.py" },
+    { "source": "/api/floor",      "destination": "/api/floor.py"      }
   ]
 }
