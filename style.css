@@ -31,8 +31,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:h
 #menu-canvas{position:absolute;inset:0;pointer-events:none}
 
 .menu-content{
-  position:relative;text-align:center;max-width:580px;padding:2rem;
+  position:relative;z-index:10;text-align:center;max-width:580px;padding:2rem;
   display:flex;flex-direction:column;align-items:center;gap:1.4rem;
+  pointer-events:all;
 }
 
 .title-eyebrow{
@@ -62,7 +63,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:h
   font-family:var(--font-d);font-size:.82rem;letter-spacing:.18em;text-transform:uppercase;
   background:linear-gradient(135deg,#c89020,#d4aa3a,#b87820);
   color:#080612;border:none;padding:.8rem 2.8rem;border-radius:2px;cursor:pointer;
-  position:relative;overflow:hidden;
+  position:relative;overflow:hidden;pointer-events:all;
   box-shadow:0 0 30px rgba(212,170,58,.2),inset 0 1px 0 rgba(255,255,255,.15);
   transition:all .2s;
 }
