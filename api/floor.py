@@ -8,8 +8,8 @@
 import json
 import random
 
-COLS = 25
-ROWS = 19
+COLS = 45
+ROWS = 33
 
 FLOOR_TILE = 0
 WALL_TILE  = 1
