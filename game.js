@@ -43,8 +43,6 @@ function resizeCanvas() {
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
-initMenuParticles();
-animateMenuParticles();
 
 // ── Input ─────────────────────────────────────
 const Keys = {};
@@ -354,6 +352,10 @@ function handleKeyDown(e) {
 
 // ── Buttons ───────────────────────────────────
 document.getElementById("btn-start").addEventListener("click", () => Game.start());
+
+// ── Init menu particles after everything is defined ──
+initMenuParticles();
+animateMenuParticles();
 
 document.getElementById("btn-descend").addEventListener("click", async () => {
   Screens.hideOverlay("floor-clear-screen");
