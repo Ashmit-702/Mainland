@@ -15,10 +15,10 @@ FLOOR_TILE = 0
 WALL_TILE  = 1
 STAIR_TILE = 3
 
-ENEMY_POOL = ["Asura", "Rakshasa", "Naga", "Pishacha", "Vetala"]
-NPC_POOL   = ["Draupadi", "Karna", "Shakuni", "Gandhari", "Bhima"]
-ITEM_POOL  = ["Amrit", "Gandiva", "Kavach", "SomRas"]
-BOSS_MAP   = {3: "Duryodhana", 6: "Duryodhana", 9: "Kali"}
+ENEMY_POOL = ["Asura", "Rakshasa", "Naga", "Pishacha", "Vetala", "Yaksha"]
+NPC_POOL   = ["Savitri", "Vikrama", "Chanaksha", "Revati", "Bheema", "Tara"]
+ITEM_POOL  = ["Amrit", "Vajra", "Kavacha", "SomRas", "Quiver", "Talisman"]
+BOSS_MAP   = {3: "Vritra", 6: "Vritra", 9: "Mahishasura"}
 
 
 class Rect:
