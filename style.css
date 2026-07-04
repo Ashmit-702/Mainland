@@ -92,8 +92,8 @@ kbd{
 }
 
 /* ── GAME CANVAS ────────────────────── */
-#game-screen{background:#050310}
-#game-canvas{display:block;position:absolute;inset:0}
+#game-screen{background:#050310;width:100vw;height:100vh;overflow:hidden}
+#game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh}
 
 /* ── HUD ────────────────────────────── */
 #hud{
