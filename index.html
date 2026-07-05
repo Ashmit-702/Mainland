@@ -18,14 +18,12 @@
     <h1 class="game-title">MAINLAND</h1>
     <div class="title-divider"><span></span><span class="diamond">◆</span><span></span></div>
     <p class="tagline">The ancient realm fractures.<br/>Demons of forgotten ages walk free.<br/>You are <em>Arjun</em> — last arrow of the gods.</p>
-    <button id="btn-start" class="btn-primary">
-      <span class="btn-inner">Begin the Journey</span>
-    </button>
+    <button id="btn-start" class="btn-primary"><span class="btn-inner">Begin the Journey</span></button>
     <div class="key-legend">
       <span><kbd>WASD</kbd> Move</span>
       <span><kbd>Space</kbd> Attack</span>
       <span><kbd>Shift</kbd> Dash</span>
-      <span><kbd>E</kbd> Talk</span>
+      <span><kbd>E</kbd> Talk / Shrine</span>
       <span><kbd>Q</kbd> Arrow</span>
     </div>
     <div class="ai-badge">⚡ Powered by Gemini AI · NPCs remember your words</div>
@@ -36,7 +34,6 @@
 <div id="game-screen" class="screen">
   <canvas id="game-canvas"></canvas>
 
-  <!-- HUD -->
   <div id="hud">
     <div id="hud-left">
       <div class="hud-name">ARJUN</div>
@@ -54,27 +51,26 @@
         · ATK <span id="s-atk">20</span>
         · DEF <span id="s-def">0</span>
         · <span id="s-gold">⛁ 0</span>
-        · Arrows <span id="s-arrows">5</span>
+        · ↑ <span id="s-arrows">5</span>
       </div>
     </div>
     <div id="hud-center">
       <div id="floor-label">Floor 1</div>
-      <div id="kill-counter">Enemies: <span id="kill-count">0</span></div>
       <div id="zone-label"></div>
+      <div id="kill-counter">Kills: <span id="kill-count">0</span></div>
     </div>
     <div id="hud-right">
       <canvas id="minimap" width="110" height="88"></canvas>
     </div>
   </div>
 
-  <!-- Boss bar -->
   <div id="boss-bar-wrap" class="hidden">
     <div id="boss-name-label">—</div>
     <div class="boss-track"><div id="boss-hp-bar"></div></div>
     <div id="boss-phase-label"></div>
   </div>
 
-  <!-- Dialogue -->
+  <!-- DIALOGUE — sits at bottom, high z-index, pointer-events:all -->
   <div id="dialogue-wrap" class="hidden">
     <div id="dialogue-header">
       <div id="dialogue-speaker"></div>
@@ -85,17 +81,18 @@
       <input id="dialogue-input" type="text" maxlength="100" placeholder="Speak to them…" autocomplete="off"/>
       <button id="btn-send">↵ Send</button>
     </div>
-    <div id="dialogue-hint">[Space] reply &nbsp;·&nbsp; [E] leave</div>
+    <div id="dialogue-hint">
+      <button id="btn-reply-shortcut" onclick="Dialogue.openInput()">✎ Reply</button>
+      <span>[Space] skip &nbsp;·&nbsp; [E] leave</span>
+    </div>
   </div>
 
-  <!-- Toasts -->
-  <div id="toast-log"></div>
-
-  <!-- Dash cooldown bar -->
   <div id="dash-bar-wrap">
     <div class="bar-label">DASH</div>
     <div class="bar-track"><div id="dash-bar" class="bar"></div></div>
   </div>
+
+  <div id="toast-log"></div>
 </div>
 
 <!-- ══ OVERLAYS ══════════════════════════════ -->
@@ -105,7 +102,7 @@
     <h2 class="overlay-title" style="color:#e05050">Arjun has fallen</h2>
     <p class="overlay-sub">The Mainland descends further into darkness.</p>
     <div id="death-stats" class="overlay-stats"></div>
-    <button class="btn-primary" onclick="Game.restart()">Rise Again</button>
+    <button class="btn-primary" onclick="Game.restart()">↺ Rise Again</button>
   </div>
 </div>
 
@@ -115,7 +112,7 @@
     <h2 class="overlay-title" style="color:#d4aa3a">The Mainland is saved</h2>
     <p class="overlay-sub">Darkness recoils. The realm breathes again.</p>
     <div id="victory-stats" class="overlay-stats"></div>
-    <button class="btn-primary" onclick="Game.restart()">Play Again</button>
+    <button class="btn-primary" onclick="Game.restart()">↺ Play Again</button>
   </div>
 </div>
 
@@ -137,7 +134,7 @@
 </div>
 
 <div id="levelup-screen" class="screen overlay hidden">
-  <div class="overlay-box levelup-box">
+  <div class="overlay-box">
     <div class="overlay-icon" style="color:#d4aa3a">✦</div>
     <h2 class="overlay-title" style="color:#d4aa3a">Arjun grows stronger</h2>
     <div id="levelup-stats" class="overlay-stats"></div>

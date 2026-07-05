@@ -493,22 +493,35 @@ function cameraFollow(t) {
 
 // ── Keyboard ──────────────────────────────────
 function handleKeyDown(e) {
+  // DIALOGUE STATE — handle all keys here, don't fall through to playing
+  if (Game.state === "dialogue") {
+    // if input box is open, let the browser handle typing normally
+    if (!document.getElementById("dialogue-input-wrap").classList.contains("hidden")) return;
+    if (e.code === "Space" || e.key === "Enter") {
+      e.preventDefault();
+      // if text still typing — skip to end
+      if (!Dialogue.isDone()) { Dialogue.skipType(); return; }
+      // text done — open input box for reply
+      Dialogue.openInput();
+    }
+    if (e.key === "e" || e.key === "E" || e.key === "Escape") {
+      e.preventDefault(); Game._endDialogue();
+    }
+    return; // never fall through to playing actions
+  }
+
+  // PLAYING STATE
   if (Game.state === "playing") {
     if (e.code === "Space")   { e.preventDefault(); Game._doAttack(); }
     if (e.code === "ShiftLeft" || e.code === "ShiftRight") { e.preventDefault(); Game.player?.dash(); }
     if (e.code === "KeyQ")    { e.preventDefault(); Game._shootArrow(); }
     if (e.key  === "e" || e.key === "E") {
-      // shrine first, then NPC
+      e.preventDefault();
       if (Game.shrine && Game.shrine.inRange(Game.player)) { Game._tryShrine(); return; }
       for (const npc of Game.npcs) {
         if (npc.inRange(Game.player)) { Game._startDialogue(npc); return; }
       }
     }
-  }
-  if (Game.state === "dialogue") {
-    if (!document.getElementById("dialogue-input-wrap").classList.contains("hidden")) return;
-    if (e.code === "Space") { e.preventDefault(); Dialogue.isDone() ? Dialogue.openInput() : Dialogue.skipType(); }
-    if (e.key === "e" || e.key === "E" || e.key === "Escape") Game._endDialogue();
   }
 }
 
