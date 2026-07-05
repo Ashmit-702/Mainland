@@ -1,8 +1,9 @@
-// MAINLAND — dungeon.js
+// MAINLAND — dungeon.js — Zone-themed renderer
 
-const FLOOR_TILE = 0;
-const WALL_TILE  = 1;
-const STAIR_TILE = 3;
+const FLOOR_TILE  = 0;
+const WALL_TILE   = 1;
+const STAIR_TILE  = 3;
+const SHRINE_TILE = 4;
 
 class Dungeon {
   constructor(data) {
@@ -12,66 +13,76 @@ class Dungeon {
     this.rows        = data.rows;
     this.playerStart = data.player_start;
     this.stairsPos   = data.stairs;
+    this.shrinePos   = data.shrine || null;
     this.enemyData   = data.enemies;
     this.bossData    = data.boss;
     this.npcData     = data.npcs;
     this.itemData    = data.items;
     this.floorNumber = data.floor_number;
+    this.zone        = data.zone || 1;
+    this.zoneName    = data.zone_name || "The Ruins";
   }
 
   isWalkable(gx, gy) {
     gx = Math.floor(gx); gy = Math.floor(gy);
     if (gx < 0 || gy < 0 || gx >= this.cols || gy >= this.rows) return false;
-    return this.grid[gy][gx] === FLOOR_TILE || this.grid[gy][gx] === STAIR_TILE;
+    const t = this.grid[gy][gx];
+    return t === FLOOR_TILE || t === STAIR_TILE || t === SHRINE_TILE;
   }
 
   draw(ctx, camX, camY, tick) {
     const W = ctx.canvas.width;
     const H = ctx.canvas.height;
+    const theme = ZONE_THEMES[this.zone] || ZONE_THEMES[1];
 
-    // Fill ENTIRE canvas with dark void first — no black gaps
-    ctx.fillStyle = "#08051a";
+    // Fill entire canvas — no black gaps ever
+    ctx.fillStyle = theme.wall;
     ctx.fillRect(0, 0, W, H);
 
-    const startCol = Math.max(0, Math.floor(camX / TILE) - 1);
-    const endCol   = Math.min(this.cols, Math.ceil((camX + W) / TILE) + 2);
-    const startRow = Math.max(0, Math.floor(camY / TILE) - 1);
-    const endRow   = Math.min(this.rows, Math.ceil((camY + H) / TILE) + 2);
+    // Visible tile range
+    const c0 = Math.max(0, Math.floor(camX / TILE) - 1);
+    const c1 = Math.min(this.cols, Math.ceil((camX + W) / TILE) + 2);
+    const r0 = Math.max(0, Math.floor(camY / TILE) - 1);
+    const r1 = Math.min(this.rows, Math.ceil((camY + H) / TILE) + 2);
 
-    for (let gy = startRow; gy < endRow; gy++) {
-      for (let gx = startCol; gx < endCol; gx++) {
+    for (let gy = r0; gy < r1; gy++) {
+      for (let gx = c0; gx < c1; gx++) {
         const tile = this.grid[gy][gx];
         const sx = Math.round(gx * TILE - camX);
         const sy = Math.round(gy * TILE - camY);
 
         if (tile === WALL_TILE) {
-          ctx.fillStyle = "#0e0820";
+          ctx.fillStyle = theme.wall;
           ctx.fillRect(sx, sy, TILE, TILE);
-          ctx.fillStyle = "#160c2e";
-          ctx.fillRect(sx + 1, sy + 2, TILE - 2, TILE - 2);
-          // top highlight
-          ctx.fillStyle = "#1e1040";
-          ctx.fillRect(sx, sy, TILE, 3);
+          // raised wall face
+          ctx.fillStyle = theme.wallTop;
+          ctx.fillRect(sx + 1, sy + 2, TILE - 2, TILE - 3);
+          // top edge highlight
+          ctx.fillStyle = theme.accent + "40";
+          ctx.fillRect(sx, sy, TILE, 2);
 
         } else if (tile === FLOOR_TILE) {
-          ctx.fillStyle = "#1e1638";
+          ctx.fillStyle = theme.floor;
           ctx.fillRect(sx, sy, TILE, TILE);
+          // subtle checker
           if ((gx + gy) % 2 === 0) {
-            ctx.fillStyle = "rgba(255,255,255,0.018)";
+            ctx.fillStyle = "rgba(255,255,255,0.015)";
             ctx.fillRect(sx, sy, TILE, TILE);
           }
-          // subtle grid line
-          ctx.strokeStyle = "rgba(100,80,160,0.12)";
+          // grid lines
+          ctx.strokeStyle = theme.accent + "18";
           ctx.lineWidth = 0.5;
           ctx.strokeRect(sx + 0.5, sy + 0.5, TILE - 1, TILE - 1);
 
         } else if (tile === STAIR_TILE) {
-          ctx.fillStyle = "#1e1638";
+          ctx.fillStyle = theme.floor;
           ctx.fillRect(sx, sy, TILE, TILE);
-          const pulse = 0.5 + 0.5 * Math.sin(tick * 0.06);
-          const r = Math.floor(180 * pulse + 60);
-          const g = Math.floor(140 * pulse + 60);
-          ctx.fillStyle = `rgba(${r},${g},20,0.85)`;
+          const p = 0.5 + 0.5 * Math.sin(tick * 0.06);
+          // zone-coloured stair glow
+          const sc = this.zone === 1 ? `rgba(180,140,20,${0.6+p*0.3})`
+                   : this.zone === 2 ? `rgba(180,40,40,${0.6+p*0.3})`
+                   :                   `rgba(40,80,200,${0.6+p*0.3})`;
+          ctx.fillStyle = sc;
           ctx.beginPath();
           ctx.roundRect(sx + 5, sy + 5, TILE - 10, TILE - 10, 5);
           ctx.fill();
@@ -81,11 +92,20 @@ class Dungeon {
           ctx.roundRect(sx + 5, sy + 5, TILE - 10, TILE - 10, 5);
           ctx.stroke();
           ctx.fillStyle = "#d4aa3a";
-          ctx.font = `bold ${Math.floor(TILE * 0.4)}px sans-serif`;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
+          ctx.font = `bold ${Math.floor(TILE * 0.38)}px sans-serif`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
           ctx.fillText("↓", sx + TILE / 2, sy + TILE / 2);
           ctx.textBaseline = "alphabetic";
+
+        } else if (tile === SHRINE_TILE) {
+          ctx.fillStyle = theme.floor;
+          ctx.fillRect(sx, sy, TILE, TILE);
+          // shrine floor marker
+          ctx.strokeStyle = "#3cdc7840";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.roundRect(sx + 4, sy + 4, TILE - 8, TILE - 8, 4);
+          ctx.stroke();
         }
       }
     }
@@ -96,43 +116,48 @@ class Dungeon {
       const [gx, gy] = key.split(",").map(Number);
       const d = ITEM_DEFS[name];
       if (!d) continue;
-      const sx = Math.round(gx * TILE + TILE / 2 - camX);
-      const sy = Math.round(gy * TILE + TILE / 2 - camY + Math.sin(tick * 0.08 + gx) * 4);
+      const sx = Math.round(gx * TILE + TILE / 2 - camX + Shake.x);
+      const sy = Math.round(gy * TILE + TILE / 2 - camY + Shake.y + Math.sin(tick * 0.08 + gx) * 4);
       ctx.save();
       ctx.shadowColor = d.colour;
-      ctx.shadowBlur  = 10 + Math.sin(tick * 0.1) * 5;
+      ctx.shadowBlur  = 8 + Math.abs(Math.sin(tick * 0.08)) * 6;
       ctx.fillStyle   = d.colour;
       ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur  = 0;
-      ctx.strokeStyle = "rgba(255,255,255,0.6)";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.arc(sx, sy, 9, 0, Math.PI * 2); ctx.stroke();
       ctx.restore();
     }
   }
 
   drawMinimap(mmCtx, player, enemies, npcs) {
-    const cw = mmCtx.canvas.width;
-    const ch = mmCtx.canvas.height;
-    const tw = cw / this.cols;
-    const th = ch / this.rows;
-    mmCtx.clearRect(0, 0, cw, ch);
+    const cw = mmCtx.canvas.width, ch = mmCtx.canvas.height;
+    const tw = cw / this.cols, th = ch / this.rows;
+    const theme = ZONE_THEMES[this.zone] || ZONE_THEMES[1];
+
     mmCtx.fillStyle = "#050310";
     mmCtx.fillRect(0, 0, cw, ch);
+
     for (let gy = 0; gy < this.rows; gy++) {
       for (let gx = 0; gx < this.cols; gx++) {
         const t = this.grid[gy][gx];
         if (t === WALL_TILE) continue;
-        mmCtx.fillStyle = t === STAIR_TILE ? "#d4aa3a" : "#2a1e50";
+        mmCtx.fillStyle = t === STAIR_TILE  ? "#d4aa3a"
+                        : t === SHRINE_TILE ? "#3cdc78"
+                        : theme.floor;
         mmCtx.fillRect(gx * tw, gy * th, tw + 0.5, th + 0.5);
       }
     }
+
+    // enemies
     mmCtx.fillStyle = "#c84040";
     for (const e of enemies) {
       if (e.hp > 0) mmCtx.fillRect(e.gx * tw - 1, e.gy * th - 1, 3, 3);
     }
+    // npcs
     mmCtx.fillStyle = "#3cb8a8";
-    for (const n of npcs) mmCtx.fillRect(n.gx * tw - 1, n.gy * th - 1, 3, 3);
+    for (const n of npcs) mmCtx.fillRect(n.gx * tw - 1, n.gy * th - 1, 2.5, 2.5);
+    // player
     mmCtx.fillStyle = "#d4aa3a";
     mmCtx.beginPath();
     mmCtx.arc(player.gx * tw, player.gy * th, 3, 0, Math.PI * 2);

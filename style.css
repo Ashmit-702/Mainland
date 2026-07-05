@@ -242,3 +242,15 @@ kbd{
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .hidden{display:none!important}
+
+/* ── Zone label ──────────────────────────────── */
+#zone-label{font-size:.62rem;letter-spacing:.18em;color:var(--gold-dim);text-transform:uppercase;margin-top:2px}
+
+/* ── Narrative overlay ───────────────────────── */
+#narrative-overlay{
+  position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
+  max-width:500px;width:90%;text-align:center;z-index:50;pointer-events:none;
+  font-family:var(--font-b);font-size:1.1rem;font-style:italic;
+  color:rgba(230,220,200,0.92);text-shadow:0 2px 20px rgba(0,0,0,0.9);
+  transition:opacity 1s;
+}

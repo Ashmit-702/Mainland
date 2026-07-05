@@ -1,8 +1,8 @@
 {
-  "version": 2,
   "rewrites": [
     { "source": "/api/dialogue",   "destination": "/api/dialogue.py"   },
     { "source": "/api/boss_taunt", "destination": "/api/boss_taunt.py" },
-    { "source": "/api/floor",      "destination": "/api/floor.py"      }
+    { "source": "/api/floor",      "destination": "/api/floor.py"      },
+    { "source": "/api/narrative",  "destination": "/api/narrative.py"  }
   ]
 }
