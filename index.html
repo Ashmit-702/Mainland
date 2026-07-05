@@ -10,7 +10,6 @@
 </head>
 <body>
 
-<!-- ══ MENU ══════════════════════════════════ -->
 <div id="menu-screen" class="screen active">
   <canvas id="menu-canvas"></canvas>
   <div class="menu-content">
@@ -26,11 +25,10 @@
       <span><kbd>E</kbd> Talk / Shrine</span>
       <span><kbd>Q</kbd> Arrow</span>
     </div>
-    <div class="ai-badge">⚡ Powered by Gemini AI · NPCs remember your words</div>
+    <div class="ai-badge">⚡ Powered by Gemini AI · Each floor narrated live</div>
   </div>
 </div>
 
-<!-- ══ GAME ═══════════════════════════════════ -->
 <div id="game-screen" class="screen">
   <canvas id="game-canvas"></canvas>
 
@@ -70,21 +68,14 @@
     <div id="boss-phase-label"></div>
   </div>
 
-  <!-- DIALOGUE — sits at bottom, high z-index, pointer-events:all -->
+  <!-- Dialogue — no reply input, just info -->
   <div id="dialogue-wrap" class="hidden">
     <div id="dialogue-header">
       <div id="dialogue-speaker"></div>
       <div id="dialogue-role"></div>
     </div>
     <div id="dialogue-text"></div>
-    <div id="dialogue-input-wrap" class="hidden">
-      <input id="dialogue-input" type="text" maxlength="100" placeholder="Speak to them…" autocomplete="off"/>
-      <button id="btn-send">↵ Send</button>
-    </div>
-    <div id="dialogue-hint">
-      <button id="btn-reply-shortcut" onclick="Dialogue.openInput()">✎ Reply</button>
-      <span>[Space] skip &nbsp;·&nbsp; [E] leave</span>
-    </div>
+    <div id="dialogue-hint">[E] or [Esc] to leave</div>
   </div>
 
   <div id="dash-bar-wrap">
@@ -95,7 +86,7 @@
   <div id="toast-log"></div>
 </div>
 
-<!-- ══ OVERLAYS ══════════════════════════════ -->
+<!-- Overlays -->
 <div id="gameover-screen" class="screen overlay hidden">
   <div class="overlay-box">
     <div class="overlay-icon">☠</div>

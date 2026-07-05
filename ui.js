@@ -11,6 +11,7 @@ const UI = {
   goldEl:    document.getElementById("s-gold"),
   arrowsEl:  document.getElementById("s-arrows"),
   floorLbl:  document.getElementById("floor-label"),
+  zoneEl:    document.getElementById("zone-label"),
   killEl:    document.getElementById("kill-count"),
   bossWrap:  document.getElementById("boss-bar-wrap"),
   bossName:  document.getElementById("boss-name-label"),
@@ -18,7 +19,6 @@ const UI = {
   bossPhase: document.getElementById("boss-phase-label"),
   toastLog:  document.getElementById("toast-log"),
   mmCtx:     document.getElementById("minimap").getContext("2d"),
-  zoneEl:    document.getElementById("zone-label"),
 
   updatePlayer(p) {
     const hpR = Math.max(0, p.hp / p.maxHp) * 100;
@@ -38,7 +38,7 @@ const UI = {
   },
 
   setFloor(n, zoneName) {
-    this.floorLbl.textContent = `Floor ${n}`;
+    if (this.floorLbl) this.floorLbl.textContent = `Floor ${n}`;
     if (this.zoneEl && zoneName) this.zoneEl.textContent = zoneName;
   },
 
@@ -64,7 +64,7 @@ const UI = {
     this.toastLog.appendChild(el);
     while (this.toastLog.children.length > 5)
       this.toastLog.removeChild(this.toastLog.firstChild);
-    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 500); }, 3000);
+    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 600); }, 3200);
   },
 
   showDeathStats(p, floor) {
@@ -86,11 +86,11 @@ const UI = {
   },
 
   showFloorClearStats(p, floor, zoneName) {
-    const sub = document.getElementById("floor-clear-sub");
+    const sub   = document.getElementById("floor-clear-sub");
     const stats = document.getElementById("floor-clear-stats");
-    if (sub) sub.textContent = floor % 3 === 0
+    if (sub)   sub.textContent = floor % 3 === 0
       ? "The boss falls. Silence reclaims the hall."
-      : `${zoneName} — the floor is clear.`;
+      : `${zoneName || "The floor"} — darkness retreats.`;
     if (stats) stats.innerHTML =
       `<strong>Floor ${floor} cleared</strong><br>
        Level ${p.level} · ${p.kills} kills · ⛁ ${p.gold}`;
@@ -100,59 +100,47 @@ const UI = {
     dungeon.drawMinimap(this.mmCtx, player, enemies, npcs);
   },
 
-  // Narrative overlay (floor entry text)
   showNarrative(text) {
     let el = document.getElementById("narrative-overlay");
     if (!el) {
       el = document.createElement("div");
       el.id = "narrative-overlay";
-      el.style.cssText = `
-        position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
-        max-width:500px;text-align:center;z-index:50;pointer-events:none;
-        font-family:'Crimson Pro',serif;font-size:1.1rem;font-style:italic;
-        color:rgba(230,220,200,0.9);text-shadow:0 0 20px rgba(0,0,0,0.8);
-        transition:opacity 0.8s;
-      `;
+      el.style.cssText =
+        "position:fixed;bottom:110px;left:50%;transform:translateX(-50%);" +
+        "max-width:520px;width:90%;text-align:center;z-index:50;pointer-events:none;" +
+        "font-family:'Crimson Pro',serif;font-size:1.1rem;font-style:italic;" +
+        "color:rgba(230,220,200,0.92);text-shadow:0 2px 20px rgba(0,0,0,0.95);" +
+        "transition:opacity 1s;opacity:0;";
       document.body.appendChild(el);
     }
     el.textContent = text;
     el.style.opacity = "1";
-    setTimeout(() => { el.style.opacity = "0"; }, 4000);
+    setTimeout(() => { el.style.opacity = "0"; }, 4500);
   },
 };
 
-// ── Dialogue ─────────────────────────────────
+// ── Dialogue — info only, no reply input ──
 const Dialogue = {
   wrap:      document.getElementById("dialogue-wrap"),
   speakerEl: document.getElementById("dialogue-speaker"),
   roleEl:    document.getElementById("dialogue-role"),
   textEl:    document.getElementById("dialogue-text"),
-  inputWrap: document.getElementById("dialogue-input-wrap"),
-  inputEl:   document.getElementById("dialogue-input"),
-  btnSend:   document.getElementById("btn-send"),
   hintEl:    document.getElementById("dialogue-hint"),
-  _timer: null, _dotTimer: null, _full: "", _shown: 0, _onSend: null,
+  _timer: null, _dotTimer: null, _full: "", _shown: 0,
 
-  open(speaker, role, text, onSend) {
-    this._onSend = onSend;
+  open(speaker, role, text) {
+    clearInterval(this._dotTimer);
     this.speakerEl.textContent = speaker;
     if (this.roleEl) this.roleEl.textContent = role ? `· ${role}` : "";
-    this.inputWrap.classList.add("hidden");
-    this.hintEl.classList.remove("hidden");
     this.wrap.classList.remove("hidden");
     this.textEl.className = "";
     this._typewrite(text);
-    // rebind every time so reply always works
-    this.btnSend.onclick = () => this._submit();
-    this.inputEl.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); this._submit(); } };
   },
 
   loading(speaker, role) {
     this.speakerEl.textContent = speaker;
     if (this.roleEl) this.roleEl.textContent = role ? `· ${role}` : "";
     this.textEl.className = "dialogue-loading";
-    this.inputWrap.classList.add("hidden");
-    this.hintEl.classList.add("hidden");
     this.wrap.classList.remove("hidden");
     clearInterval(this._dotTimer);
     let d = 0;
@@ -161,59 +149,26 @@ const Dialogue = {
     }, 300);
   },
 
-  setResponse(text) {
-    clearInterval(this._dotTimer);
-    this.textEl.className = "";
-    this._typewrite(text);
-    this.inputWrap.classList.add("hidden");
-    this.hintEl.classList.remove("hidden");
-  },
-
   _typewrite(text) {
     clearInterval(this._timer);
     this._full = text; this._shown = 0; this.textEl.textContent = "";
     this._timer = setInterval(() => {
-      this._shown = Math.min(this._full.length, this._shown + 1);
+      this._shown = Math.min(this._full.length, this._shown + 2);
       this.textEl.textContent = this._full.slice(0, this._shown);
       if (this._shown >= this._full.length) clearInterval(this._timer);
-    }, 20);
-  },
-
-  skipType() {
-    clearInterval(this._timer);
-    this._shown = this._full.length;
-    this.textEl.textContent = this._full;
-  },
-
-  isDone() { return this._shown >= this._full.length; },
-
-  openInput() {
-    this.inputWrap.classList.remove("hidden");
-    this.hintEl.classList.add("hidden");
-    this.inputEl.value = "";
-    setTimeout(() => this.inputEl.focus(), 50);
-  },
-
-  _submit() {
-    const val = this.inputEl.value.trim();
-    if (!val) return;
-    this.inputEl.value = "";
-    this.inputWrap.classList.add("hidden");
-    if (this._onSend) this._onSend(val);
+    }, 18);
   },
 
   close() {
     clearInterval(this._timer);
     clearInterval(this._dotTimer);
     this.wrap.classList.add("hidden");
-    this.inputEl.blur();
-    this._onSend = null;
   },
 
   isOpen() { return !this.wrap.classList.contains("hidden"); },
 };
 
-// ── Screens ───────────────────────────────────
+// ── Screens ───────────────────────────────
 const Screens = {
   show(id) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -222,7 +177,7 @@ const Screens = {
   showOverlay(id)  { document.getElementById(id)?.classList.remove("hidden"); },
   hideOverlay(id)  { document.getElementById(id)?.classList.add("hidden"); },
   hideAllOverlays() {
-    ["gameover-screen","victory-screen","floor-clear-screen",
-     "loading-screen","levelup-screen"].forEach(id => this.hideOverlay(id));
+    ["gameover-screen","victory-screen","floor-clear-screen","loading-screen","levelup-screen"]
+      .forEach(id => this.hideOverlay(id));
   },
 };
