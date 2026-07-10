@@ -72,21 +72,25 @@ const Game = {
   items:         new Map(),
   arrows:        [],
   particles:     [],
+  damageNumbers: [],
   activeNPC:     null,
   bossIntro:     false,
   _loopRunning:  false,
   _totalEnemies: 0,   // FIX: track total enemies spawned on floor
   _killedCount:  0,   // FIX: track kills on this floor separately
+  _lastPlayerHp: null,
 
   async start() {
     Audio.init();
     this.floorNumber = 1;
     this.player      = null;
+    this._seenZones  = new Set();
     deathAlpha       = 0;
     deathActive      = false;
     await this.loadFloor(1, false);
     Screens.show("game-screen");
     Screens.hideAllOverlays();
+    setTimeout(() => UI.showNarrative(PROLOGUE_TEXT, 6500), 600);
     if (!this._loopRunning) {
       this._loopRunning = true;
       requestAnimationFrame(() => this.loop());
@@ -94,6 +98,21 @@ const Game = {
   },
 
   restart() {
+    this._resetState();
+    Dialogue.close();
+    Screens.hideAllOverlays();
+    Screens.show("menu-screen");
+    initMenuParticles();
+    animateMenuParticles();
+  },
+
+  playAgain() {
+    this._resetState();
+    Dialogue.close();
+    this.start();
+  },
+
+  _resetState() {
     this.state        = "menu";
     this.floorNumber  = 1;
     this.dungeon      = null;
@@ -105,17 +124,15 @@ const Game = {
     this.items        = new Map();
     this.arrows       = [];
     this.particles    = [];
+    this.damageNumbers = [];
     this.activeNPC    = null;
     this.bossIntro    = false;
     this._totalEnemies= 0;
     this._killedCount = 0;
+    this._lastPlayerHp= null;
+    this._seenZones   = new Set();
     deathAlpha        = 0;
     deathActive       = false;
-    Dialogue.close();
-    Screens.hideAllOverlays();
-    Screens.show("menu-screen");
-    initMenuParticles();
-    animateMenuParticles();
   },
 
   async loadFloor(n, carryPlayer=true) {
@@ -169,6 +186,7 @@ const Game = {
 
     this.arrows    = [];
     this.particles = [];
+    this.damageNumbers = [];
     deathAlpha     = 0;
     deathActive    = false;
 
@@ -180,10 +198,19 @@ const Game = {
     UI.setKills(this.player.kills);
     UI.hideBoss();
 
+    // First-time zone lore gets priority billing; floor narrative follows after.
+    const isNewZone = !this._seenZones.has(this.dungeon.zone);
+    this._seenZones.add(this.dungeon.zone);
+    const floorNarrativeDelay = isNewZone ? 6200 : 1000;
+
+    if (isNewZone && ZONE_LORE[this.dungeon.zone]) {
+      setTimeout(() => UI.showNarrative(ZONE_LORE[this.dungeon.zone], 5500), 900);
+    }
+
     // Floor narrative — fire and forget, never blocks
     safeFetch(`${API_BASE}/api/narrative`, {
       kind:"floor", floor_number:n, zone_name:data.zone_name
-    }).then(d => { if (d?.text) setTimeout(() => UI.showNarrative(d.text), 1000); });
+    }).then(d => { if (d?.text) setTimeout(() => UI.showNarrative(d.text), floorNarrativeDelay); });
 
     Screens.hideOverlay("loading-screen");
     Screens.hideAllOverlays();
@@ -211,7 +238,10 @@ const Game = {
 
     // Arrows
     const allTargets = this.boss ? [...this.enemies, this.boss] : [...this.enemies];
-    for (const a of this.arrows) a.update(this.dungeon, allTargets);
+    for (const a of this.arrows) {
+      a.update(this.dungeon, allTargets);
+      if (a.hitInfo) this._spawnDamageNumber(a.hitInfo.enemy.x, a.hitInfo.enemy.y - 20, a.hitInfo.dmg, false, "#d4aa3a");
+    }
     this.arrows = this.arrows.filter(a => a.alive);
 
     // Enemies
@@ -241,6 +271,7 @@ const Game = {
           Math.abs(this.boss.gy - this.player.gy) < 10) {
         this.bossIntro = true;
         UI.showBoss(this.boss);
+        UI.showNarrative(this.boss.lore, 5500);
         Audio.boss(); Shake.trigger(12, 20);
         safeFetch(`${API_BASE}/api/boss_taunt`, {
           boss_name:this.boss.name, lore:this.boss.lore, phase:1
@@ -275,11 +306,22 @@ const Game = {
     for (const npc of this.npcs) npc.update();
     if (this.shrine) this.shrine.update();
 
+    // Track player damage taken (enemy/boss attacks call player.takeDamage internally)
+    if (this._lastPlayerHp === null) this._lastPlayerHp = this.player.hp;
+    if (this.player.hp < this._lastPlayerHp) {
+      this._spawnDamageNumber(this.player.x, this.player.y - 24, this._lastPlayerHp - this.player.hp, false, "#e05050");
+    }
+    this._lastPlayerHp = this.player.hp;
+
     // Particles
     for (const p of this.particles) {
       p.x += p.vx; p.y += p.vy; p.vy += 0.1; p.life--; p.r *= 0.94;
     }
     this.particles = this.particles.filter(p => p.life > 0);
+
+    // Floating damage numbers
+    for (const d of this.damageNumbers) { d.y += d.vy; d.vy += 0.02; d.life--; }
+    this.damageNumbers = this.damageNumbers.filter(d => d.life > 0);
 
     // Item pickup
     const ikey = `${this.player.gx},${this.player.gy}`;
@@ -312,6 +354,7 @@ const Game = {
       if (this.floorNumber >= 9) {
         UI.showVictoryStats(this.player);
         Screens.showOverlay("victory-screen");
+        setTimeout(() => UI.showNarrative(EPILOGUE_TEXT, 7000), 400);
       } else {
         UI.showFloorClearStats(this.player, this.floorNumber, this.dungeon.zoneName);
         Screens.showOverlay("floor-clear-screen");
@@ -362,6 +405,19 @@ const Game = {
     for (const a of this.arrows) a.draw(ctx, Camera.x, Camera.y);
     if (this.player && !this.player._dead) this.player.draw(ctx, Camera.x, Camera.y);
 
+    for (const d of this.damageNumbers) {
+      const a = Math.max(0, d.life / d.maxLife);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.font = d.crit ? "bold 20px 'Cinzel',serif" : "bold 14px 'Cinzel',serif";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(0,0,0,0.6)";
+      ctx.fillText(String(d.amount), d.x - Camera.x + Shake.x + 1, d.y - Camera.y + Shake.y + 1);
+      ctx.fillStyle = d.colour;
+      ctx.fillText(String(d.amount), d.x - Camera.x + Shake.x, d.y - Camera.y + Shake.y);
+      ctx.restore();
+    }
+
     // Death animation
     if (deathActive || this.state === "dying") {
       deathAlpha = Math.min(1, deathAlpha + 0.012);
@@ -380,10 +436,10 @@ const Game = {
       ctx.fillStyle = "rgba(255,255,255,0.13)";
       ctx.font = "11px 'Crimson Pro',serif";
       ctx.textAlign = "left";
-      ctx.fillText(
-        "WASD: move  ·  Space: attack  ·  Shift: dash  ·  Q: shoot  ·  E: talk/shrine",
-        14, canvas.height - 12
-      );
+      const hint = document.body.classList.contains("touch-device")
+        ? "Joystick: move  ·  ⚔ Attack  ·  ↑ Arrow  ·  ⚡ Dash  ·  E: talk/shrine"
+        : "WASD: move  ·  Space: attack  ·  Shift: dash  ·  Q: shoot  ·  E: talk/shrine";
+      ctx.fillText(hint, 14, canvas.height - 12);
     }
   },
 
@@ -401,7 +457,19 @@ const Game = {
     if (this.state !== "playing" || !this.player) return;
     const targets = this.boss && this.boss.hp > 0
       ? [...this.enemies, this.boss] : [...this.enemies];
-    this.player.doAttack(targets);
+    const hits = this.player.doAttack(targets);
+    for (const h of hits) {
+      this._spawnDamageNumber(h.enemy.x, h.enemy.y - 20, h.dmg, h.crit);
+      if (h.crit) UI.toast(`Critical hit! −${h.dmg}`, "good");
+    }
+  },
+
+  _spawnDamageNumber(x, y, amount, crit=false, colour=null) {
+    this.damageNumbers.push({
+      x, y, amount, crit,
+      colour: colour || (crit ? "#ffd040" : "#f0e0c0"),
+      vy: -1.4, life: 42, maxLife: 42,
+    });
   },
 
   _shootArrow() {
@@ -491,6 +559,77 @@ document.getElementById("btn-levelup-ok")?.addEventListener("click", () => {
   Screens.hideOverlay("levelup-screen");
   if (Game.state === "levelup") Game.state = "playing";
 });
+
+// ── Touch controls (mobile) ───────────────────
+(function setupTouchControls() {
+  const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+  if (isTouch) document.body.classList.add("touch-device");
+
+  const zone  = document.getElementById("touch-joystick-zone");
+  const base  = document.getElementById("touch-joystick-base");
+  const stick = document.getElementById("touch-joystick-stick");
+  if (!zone || !base || !stick) return;
+
+  let joystickId = null, baseX = 0, baseY = 0;
+  const RADIUS = 46;
+
+  function setKeysFromVector(dx, dy) {
+    Keys["ArrowLeft"]=Keys["a"]=Keys["KeyA"]  = dx < -0.25;
+    Keys["ArrowRight"]=Keys["d"]=Keys["KeyD"] = dx > 0.25;
+    Keys["ArrowUp"]=Keys["w"]=Keys["KeyW"]    = dy < -0.25;
+    Keys["ArrowDown"]=Keys["s"]=Keys["KeyS"]  = dy > 0.25;
+  }
+  function clearMoveKeys() { setKeysFromVector(0, 0); }
+
+  zone.addEventListener("touchstart", e => {
+    const t = e.changedTouches[0];
+    joystickId = t.identifier;
+    const rect = base.getBoundingClientRect();
+    baseX = rect.left + rect.width/2; baseY = rect.top + rect.height/2;
+    base.classList.add("active");
+    e.preventDefault();
+  }, { passive:false });
+
+  zone.addEventListener("touchmove", e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joystickId) continue;
+      let dx = t.clientX - baseX, dy = t.clientY - baseY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > RADIUS) { dx = dx/dist*RADIUS; dy = dy/dist*RADIUS; }
+      stick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      setKeysFromVector(dx/RADIUS, dy/RADIUS);
+    }
+    e.preventDefault();
+  }, { passive:false });
+
+  function endJoystick(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joystickId) continue;
+      joystickId = null;
+      stick.style.transform = "translate(-50%,-50%)";
+      base.classList.remove("active");
+      clearMoveKeys();
+    }
+  }
+  zone.addEventListener("touchend", endJoystick);
+  zone.addEventListener("touchcancel", endJoystick);
+
+  function bindTap(id, fn) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("touchstart", e => { e.preventDefault(); Audio.init(); fn(); }, { passive:false });
+  }
+  bindTap("touch-attack",   () => Game._doAttack());
+  bindTap("touch-arrow",    () => Game._shootArrow());
+  bindTap("touch-dash",     () => Game.player?.dash());
+  bindTap("touch-interact", () => {
+    if (Game.state === "dialogue") { Game._endDialogue(); return; }
+    if (Game.shrine?.inRange(Game.player)) { Game._tryShrine(); return; }
+    for (const npc of Game.npcs) {
+      if (npc.inRange(Game.player)) { Game._startDialogue(npc); return; }
+    }
+  });
+})();
 
 // ── Boot ──────────────────────────────────────
 initMenuParticles();

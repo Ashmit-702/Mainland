@@ -84,6 +84,19 @@
   </div>
 
   <div id="toast-log"></div>
+
+  <!-- Touch controls — shown automatically on touch devices via body.touch-device -->
+  <div id="touch-controls">
+    <div id="touch-joystick-zone">
+      <div id="touch-joystick-base"><div id="touch-joystick-stick"></div></div>
+    </div>
+    <div id="touch-buttons">
+      <button id="touch-interact" class="touch-btn touch-btn-small" aria-label="Talk / Shrine">E</button>
+      <button id="touch-dash" class="touch-btn" aria-label="Dash">⚡</button>
+      <button id="touch-arrow" class="touch-btn" aria-label="Shoot arrow">↑</button>
+      <button id="touch-attack" class="touch-btn touch-btn-primary" aria-label="Attack">⚔</button>
+    </div>
+  </div>
 </div>
 
 <!-- Overlays -->
@@ -93,7 +106,8 @@
     <h2 class="overlay-title" style="color:#e05050">Arjun has fallen</h2>
     <p class="overlay-sub">The Mainland descends further into darkness.</p>
     <div id="death-stats" class="overlay-stats"></div>
-    <button class="btn-primary" onclick="Game.restart()">↺ Rise Again</button>
+    <button class="btn-primary" onclick="Game.playAgain()">↺ Rise Again</button>
+    <button class="btn-secondary" onclick="Game.restart()">Main Menu</button>
   </div>
 </div>
 
@@ -103,7 +117,8 @@
     <h2 class="overlay-title" style="color:#d4aa3a">The Mainland is saved</h2>
     <p class="overlay-sub">Darkness recoils. The realm breathes again.</p>
     <div id="victory-stats" class="overlay-stats"></div>
-    <button class="btn-primary" onclick="Game.restart()">↺ Play Again</button>
+    <button class="btn-primary" onclick="Game.playAgain()">↺ Play Again</button>
+    <button class="btn-secondary" onclick="Game.restart()">Main Menu</button>
   </div>
 </div>
 

@@ -100,7 +100,7 @@ const UI = {
     dungeon.drawMinimap(this.mmCtx, player, enemies, npcs);
   },
 
-  showNarrative(text) {
+  showNarrative(text, duration=4500) {
     let el = document.getElementById("narrative-overlay");
     if (!el) {
       el = document.createElement("div");
@@ -113,9 +113,10 @@ const UI = {
         "transition:opacity 1s;opacity:0;";
       document.body.appendChild(el);
     }
+    clearTimeout(this._narrativeTimer);
     el.textContent = text;
     el.style.opacity = "1";
-    setTimeout(() => { el.style.opacity = "0"; }, 4500);
+    this._narrativeTimer = setTimeout(() => { el.style.opacity = "0"; }, duration);
   },
 };
 

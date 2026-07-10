@@ -24,7 +24,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:h
 /* ── SCREENS ────────────────────────── */
 .screen{position:fixed;inset:0;display:none}
 .screen.active{display:flex}
-.overlay{align-items:center;justify-content:center;background:rgba(4,2,12,0.92);backdrop-filter:blur(8px);z-index:100}
+/* FIX: overlay screens (gameover/victory/floor-clear/loading/levelup) are toggled via
+   the .hidden class only — they never receive .active. Without this rule they matched
+   only the base .screen{display:none} and could never appear, which is why the restart
+   button never showed up. .overlay now sets its own display, later in the cascade than
+   .screen so it wins at equal specificity once .hidden is removed. */
+.overlay{display:flex;align-items:center;justify-content:center;background:rgba(4,2,12,0.92);backdrop-filter:blur(8px);z-index:100;animation:overlayFadeIn .35s ease}
+.overlay.hidden{display:none!important}
 
 /* ── MENU ───────────────────────────── */
 #menu-screen{flex-direction:column;align-items:center;justify-content:center;background:var(--bg)}
@@ -252,6 +258,64 @@ kbd{
 @keyframes spin{to{transform:rotate(360deg)}}
 
 .hidden{display:none!important}
+
+/* ── Secondary button ───────────────────────────*/
+.btn-secondary{
+  font-family:var(--font-d);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  background:transparent;color:var(--text-dim);border:1px solid var(--border2);
+  padding:.55rem 1.6rem;border-radius:2px;cursor:pointer;pointer-events:all;
+  transition:all .2s;
+}
+.btn-secondary:hover{color:var(--gold-light);border-color:var(--gold-dim);background:rgba(212,170,58,.06)}
+
+/* ── Overlay / level-up entrance animation ──────*/
+@keyframes overlayFadeIn{from{opacity:0}to{opacity:1}}
+.overlay-box{animation:overlayBoxIn .4s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes overlayBoxIn{
+  from{opacity:0;transform:translateY(18px) scale(.96)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.overlay-icon{animation:iconPop .5s cubic-bezier(.3,1.4,.4,1) .1s both}
+@keyframes iconPop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── Touch controls (mobile) ────────────────────*/
+#touch-controls{display:none;position:absolute;inset:0;z-index:20;pointer-events:none}
+body.touch-device #touch-controls{display:block}
+#touch-joystick-zone{
+  position:absolute;left:0;bottom:0;width:45vw;height:45vh;
+  pointer-events:all;
+}
+#touch-joystick-base{
+  position:absolute;left:32px;bottom:32px;width:100px;height:100px;border-radius:50%;
+  background:rgba(255,255,255,.05);border:2px solid rgba(212,170,58,.35);
+  backdrop-filter:blur(4px);
+}
+#touch-joystick-stick{
+  position:absolute;left:50%;top:50%;width:44px;height:44px;border-radius:50%;
+  background:rgba(212,170,58,.55);border:1px solid rgba(255,255,255,.4);
+  transform:translate(-50%,-50%);transition:background .15s;
+}
+#touch-joystick-base.active #touch-joystick-stick{background:rgba(212,170,58,.85)}
+#touch-buttons{
+  position:absolute;right:22px;bottom:26px;width:170px;height:170px;pointer-events:all;
+}
+.touch-btn{
+  position:absolute;width:60px;height:60px;border-radius:50%;
+  background:rgba(16,12,32,.75);border:1px solid rgba(212,170,58,.4);
+  color:var(--gold-light);font-size:1.3rem;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;user-select:none;backdrop-filter:blur(4px);
+  transition:transform .1s,background .1s;
+}
+.touch-btn:active{transform:scale(.88);background:rgba(212,170,58,.3)}
+.touch-btn-primary{
+  width:74px;height:74px;right:0;bottom:0;
+  background:linear-gradient(135deg,#c89020,#d4aa3a);color:#080612;border:none;
+  box-shadow:0 0 20px rgba(212,170,58,.35);font-size:1.6rem;
+}
+#touch-arrow{right:70px;bottom:60px}
+#touch-dash{right:0;bottom:100px}
+.touch-btn-small{width:44px;height:44px;font-size:.85rem;right:110px;bottom:0}
+@media (min-width:900px) and (pointer:fine){ #touch-controls{display:none!important} }
 
 /* ── Zone label ──────────────────────────────── */
 #zone-label{font-size:.62rem;letter-spacing:.18em;color:var(--gold-dim);text-transform:uppercase;margin-top:2px}

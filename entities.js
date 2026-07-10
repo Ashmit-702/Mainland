@@ -44,7 +44,22 @@ const ITEM_DEFS = {
   Talisman: { type:"maxhp",  value:30, colour:"#e060c0", desc:"Life relic — your blood strengthens." },
 };
 
-// ── Web Audio engine ──────────────────────────
+// ── Zone lore — shown once when Arjun first enters each zone ──
+const ZONE_LORE = {
+  1: "The Outer Ruins were once the outer wall of Indraprastha. Now the stones remember only fire, and the things that walk here remember only hunger.",
+  2: "Below the ruins lie the Blood Crypts — where Duryodhana's court was buried alive rather than kneel. Their envy did not die with them.",
+  3: "Past the crypts, the world stops obeying its own rules. This is the Void Sanctum, and Kali has been waiting here since before there was a 'before'.",
+};
+
+const PROLOGUE_TEXT =
+  "The war is long over. Hastinapur is ash. But something in the deep dark refused to stay buried — " +
+  "and it has taken the Brahmastra with it. Arjun descends alone, because there is no one else left to send.";
+
+const EPILOGUE_TEXT =
+  "The Brahmastra returns to Arjun's hand, and the Mainland exhales for the first time in an age. " +
+  "The dark is not gone forever. But tonight, it retreats.";
+
+
 const Audio = {
   ctx: null,
   init() {
@@ -101,13 +116,18 @@ class Arrow {
     this.trail=[];
   }
   update(dungeon, enemies) {
+    this.hitInfo = null;
     this.trail.push({x:this.x,y:this.y});
     if(this.trail.length>8) this.trail.shift();
     this.x+=this.vx; this.y+=this.vy; this.age++;
     if(!dungeon.isWalkable(Math.floor(this.x/TILE),Math.floor(this.y/TILE))||this.age>140){this.alive=false;return;}
     for(const e of enemies){
       if(e.hp<=0) continue;
-      if(Math.hypot(e.x-this.x,e.y-this.y)<18){e.takeDamage(this.damage);this.alive=false;return;}
+      if(Math.hypot(e.x-this.x,e.y-this.y)<18){
+        e.takeDamage(this.damage);
+        this.hitInfo = {enemy:e, dmg:this.damage};
+        this.alive=false;return;
+      }
     }
   }
   draw(ctx,camX,camY) {
@@ -189,6 +209,10 @@ class Player {
   }
 
   doAttack(enemies){
+    // FIX: melee used to require a forward-facing dot-product check, so an enemy
+    // beside or behind you (extremely common once you're surrounded) took no damage
+    // even though the swing animation played. Attacks now land on anything within
+    // range in a full circle around Arjun — matching what the swing VFX shows.
     if(this.attackCd>0) return [];
     this.attackCd=28;this.attackAnim=10;
     Audio.hit();
@@ -197,8 +221,10 @@ class Player {
       if(e.hp<=0) continue;
       const dist=Math.hypot(e.x-this.x,e.y-this.y);
       if(dist<=this.attackRange){
-        const dot=this.facing.x*(e.x-this.x)+this.facing.y*(e.y-this.y);
-        if(dot>0||dist<TILE*0.65){e.takeDamage(Math.max(1,this.attack-e.defense));hit.push(e);}
+        const crit = Math.random() < 0.15;
+        const dmg  = Math.max(1, Math.round((this.attack-e.defense) * (crit?1.75:1)));
+        e.takeDamage(dmg);
+        hit.push({enemy:e, dmg, crit});
       }
     }
     return hit;
@@ -270,11 +296,23 @@ class Player {
       ctx.globalAlpha=1;
     }
     if(this.attackAnim>0){
-      ctx.globalAlpha=this.attackAnim/10;
-      const g=ctx.createRadialGradient(sx,sy,10,sx,sy,TILE*0.75);
-      g.addColorStop(0,"rgba(212,170,58,0.5)");g.addColorStop(1,"rgba(212,170,58,0)");
-      ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,TILE*0.75,0,Math.PI*2);ctx.fill();
-      ctx.globalAlpha=1;
+      const a=this.attackAnim/10;
+      const ang=Math.atan2(this.facing.y,this.facing.x);
+      ctx.save();
+      ctx.globalAlpha=a*0.9;
+      ctx.translate(sx,sy);ctx.rotate(ang);
+      const swingR=this.attackRange*0.95;
+      const grad=ctx.createRadialGradient(0,0,swingR*0.3,0,0,swingR);
+      grad.addColorStop(0,"rgba(240,220,160,0.55)");
+      grad.addColorStop(1,"rgba(212,170,58,0)");
+      ctx.fillStyle=grad;
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.arc(0,0,swingR,-0.85,0.85);
+      ctx.closePath();ctx.fill();
+      ctx.strokeStyle=`rgba(255,240,200,${a*0.8})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(0,0,swingR,-0.85,0.85);ctx.stroke();
+      ctx.restore();
     }
     ctx.fillStyle="rgba(0,0,0,0.3)";
     ctx.beginPath();ctx.ellipse(sx,sy+16,13,5,0,0,Math.PI*2);ctx.fill();
