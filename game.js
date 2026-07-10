@@ -79,6 +79,8 @@ const Game = {
   _totalEnemies: 0,   // FIX: track total enemies spawned on floor
   _killedCount:  0,   // FIX: track kills on this floor separately
   _lastPlayerHp: null,
+  comboCount:    0,
+  comboTimer:    0,
 
   async start() {
     Audio.init();
@@ -131,6 +133,8 @@ const Game = {
     this._killedCount = 0;
     this._lastPlayerHp= null;
     this._seenZones   = new Set();
+    this.comboCount   = 0;
+    this.comboTimer   = 0;
     deathAlpha        = 0;
     deathActive       = false;
   },
@@ -179,10 +183,13 @@ const Game = {
       this.boss = new Enemy(data.boss.name, data.boss.gx, data.boss.gy, bs, true);
     }
 
-    this.npcs   = data.npcs.map(d => new NPC(d.name, d.gx, d.gy));
+    this.npcs   = data.npcs.map(d => new NPC(d.name, d.gx, d.gy, !!d.holds_key));
     this.shrine = data.shrine ? new Shrine(data.shrine.gx, data.shrine.gy) : null;
     this.items.clear();
     for (const it of data.items) this.items.set(`${it.gx},${it.gy}`, it.name);
+    if (this.player) this.player.hasVaultKey = false;
+    this.comboCount = 0;
+    this.comboTimer = 0;
 
     this.arrows    = [];
     this.particles = [];
@@ -252,7 +259,10 @@ const Game = {
         e._xpGiven = true;
         this._killedCount++;
         this.player.gainXp(e.xpValue);
-        this.player.gold += Math.floor(Math.random() * 10 + 5);
+        let goldGain = Math.floor(Math.random() * 10 + 5);
+        this._registerCombo();
+        if (this.comboCount >= 2) goldGain += this.comboCount * 2;
+        this.player.gold += goldGain;
         this.player.kills++;
         UI.setKills(this.player.kills);
         Audio.kill();
@@ -322,6 +332,12 @@ const Game = {
     // Floating damage numbers
     for (const d of this.damageNumbers) { d.y += d.vy; d.vy += 0.02; d.life--; }
     this.damageNumbers = this.damageNumbers.filter(d => d.life > 0);
+
+    // Kill combo decay
+    if (this.comboTimer > 0) {
+      this.comboTimer--;
+      if (this.comboTimer === 0) { this.comboCount = 0; UI.setCombo(0); }
+    }
 
     // Item pickup
     const ikey = `${this.player.gx},${this.player.gy}`;
@@ -479,6 +495,33 @@ const Game = {
     else UI.toast("No arrows — find a Quiver!", "bad");
   },
 
+  _registerCombo() {
+    this.comboCount++;
+    this.comboTimer = 150; // ~2.5s at 60fps to keep the combo alive
+    UI.setCombo(this.comboCount);
+    if (this.comboCount === 3) UI.toast("Combo x3!", "good");
+    else if (this.comboCount === 5) UI.toast("Combo x5 — relentless!", "good");
+    else if (this.comboCount >= 8 && this.comboCount % 4 === 0) UI.toast(`Combo x${this.comboCount}!`, "good");
+  },
+
+  _tryDoor() {
+    const door = this.dungeon?.nearestLockedDoor(this.player, this.player.interactRange);
+    if (!door) return false;
+    if (this.player.hasVaultKey) {
+      this.dungeon.unlockDoors();
+      this.player.hasVaultKey = false;
+      UI.setKey(false);
+      UI.toast("The vault door grinds open.", "good");
+      Audio.doorUnlock();
+      Shake.trigger(5, 12);
+      const cx = door.gx * TILE + TILE/2, cy = door.gy * TILE + TILE/2;
+      this._spawnParticles(cx, cy, "#f0cc60", 16);
+    } else {
+      UI.toast("Locked. Someone nearby might carry the key…", "bad");
+    }
+    return true;
+  },
+
   _tryShrine() {
     if (!this.shrine || this.shrine.used) { UI.toast("Shrine is spent.", ""); return; }
     if (this.player.gold < 30) { UI.toast("Need ⛁30 to use shrine.", "bad"); return; }
@@ -491,6 +534,19 @@ const Game = {
   _startDialogue(npc) {
     this.activeNPC = npc;
     this.state     = "dialogue";
+
+    // Key handoff — a one-time, guaranteed moment tied to this specific character.
+    if (npc.holdsKey && !npc.keyGiven && !this.player.hasVaultKey) {
+      npc.keyGiven = true;
+      npc.talked = true;
+      this.player.hasVaultKey = true;
+      UI.setKey(true);
+      Audio.keyGet();
+      Dialogue.open(npc.name, npc.role, npc.keyLine);
+      UI.toast(`${npc.name} gives you the Vault Key.`, "good");
+      return;
+    }
+
     // Show greeting immediately
     Dialogue.open(npc.name, npc.role, npc.greeting);
     // Fetch contextual line — updates text when ready, no "thinking" state
@@ -501,6 +557,7 @@ const Game = {
       history:      npc.history.slice(-2),
       floor_number: this.floorNumber,
       player_level: this.player?.level || 1,
+      already_gave_key: npc.holdsKey && npc.keyGiven,
     }).then(d => {
       if (d?.reply && this.state === "dialogue" && this.activeNPC === npc) {
         npc.history.push({ player:"context", npc:d.reply });
@@ -514,6 +571,16 @@ const Game = {
     Dialogue.close();
     this.activeNPC = null;
     if (this.state === "dialogue") this.state = "playing";
+  },
+
+  _togglePause() {
+    if (this.state === "playing") {
+      this.state = "paused";
+      Screens.showOverlay("pause-screen");
+    } else if (this.state === "paused") {
+      this.state = "playing";
+      Screens.hideOverlay("pause-screen");
+    }
   },
 };
 
@@ -532,6 +599,10 @@ function handleKeyDown(e) {
     }
     return;
   }
+  if (e.key === "Escape" && (Game.state === "playing" || Game.state === "paused")) {
+    e.preventDefault(); Game._togglePause();
+    return;
+  }
   if (Game.state !== "playing") return;
 
   if (e.code === "Space")   { e.preventDefault(); Game._doAttack(); return; }
@@ -539,6 +610,7 @@ function handleKeyDown(e) {
   if (e.code === "KeyQ")    { e.preventDefault(); Game._shootArrow(); return; }
   if (e.key  === "e"||e.key==="E") {
     e.preventDefault();
+    if (Game._tryDoor()) return;
     if (Game.shrine?.inRange(Game.player)) { Game._tryShrine(); return; }
     for (const npc of Game.npcs) {
       if (npc.inRange(Game.player)) { Game._startDialogue(npc); return; }
@@ -559,6 +631,8 @@ document.getElementById("btn-levelup-ok")?.addEventListener("click", () => {
   Screens.hideOverlay("levelup-screen");
   if (Game.state === "levelup") Game.state = "playing";
 });
+
+document.getElementById("btn-pause")?.addEventListener("click", () => Game._togglePause());
 
 // ── Touch controls (mobile) ───────────────────
 (function setupTouchControls() {
@@ -624,6 +698,7 @@ document.getElementById("btn-levelup-ok")?.addEventListener("click", () => {
   bindTap("touch-dash",     () => Game.player?.dash());
   bindTap("touch-interact", () => {
     if (Game.state === "dialogue") { Game._endDialogue(); return; }
+    if (Game._tryDoor()) return;
     if (Game.shrine?.inRange(Game.player)) { Game._tryShrine(); return; }
     for (const npc of Game.npcs) {
       if (npc.inRange(Game.player)) { Game._startDialogue(npc); return; }

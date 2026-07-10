@@ -11,6 +11,7 @@ FLOOR_TILE = 0
 WALL_TILE  = 1
 STAIR_TILE = 3
 SHRINE_TILE = 4
+DOOR_TILE  = 5   # locked vault door — requires a key held by an NPC on the floor
 
 # Zone definitions
 ZONES = {
@@ -21,7 +22,65 @@ ZONES = {
 
 NPC_POOL   = ["Draupadi","Karna","Shakuni","Gandhari","Bhima"]
 ITEM_POOL  = ["Amrit","Vajra","Kavacha","SomRas","Quiver","Talisman"]
+VAULT_ITEM_POOL = ["Vajra","Kavacha","Talisman","Amrit"]  # vault rewards skew stronger
 BOSS_FLOORS = {3: "Duryodhana", 6: "Duryodhana", 9: "Kali"}
+
+
+def try_place_vault(grid, rooms, cols, rows):
+    """Carve a small gated vault room in untouched wall space, connected to the
+    nearest existing room through exactly one DOOR_TILE cell. Returns
+    (door_cells, vault_item_cells) or (None, None) if no space could be found."""
+    for _ in range(60):
+        w = random.randint(3, 4)
+        h = random.randint(3, 4)
+        x = random.randint(2, cols - w - 3)
+        y = random.randint(2, rows - h - 3)
+
+        ok = True
+        for ry in range(y - 1, y + h + 1):
+            for rx in range(x - 1, x + w + 1):
+                if not (0 <= rx < cols and 0 <= ry < rows) or grid[ry][rx] != WALL_TILE:
+                    ok = False; break
+            if not ok: break
+        if not ok:
+            continue
+
+        vr = Rect(x, y, w, h)
+        nearest = min(rooms, key=lambda r: (r.cx - vr.cx) ** 2 + (r.cy - vr.cy) ** 2)
+
+        # carve vault interior
+        for (ix, iy) in vr.inner():
+            grid[iy][ix] = FLOOR_TILE
+
+        # carve a single L-shaped connector corridor to the nearest room
+        if random.random() < 0.5:
+            for cx in range(min(vr.cx, nearest.cx), max(vr.cx, nearest.cx) + 1):
+                if grid[vr.cy][cx] == WALL_TILE: grid[vr.cy][cx] = FLOOR_TILE
+            for cy in range(min(vr.cy, nearest.cy), max(vr.cy, nearest.cy) + 1):
+                if grid[cy][nearest.cx] == WALL_TILE: grid[cy][nearest.cx] = FLOOR_TILE
+        else:
+            for cy in range(min(vr.cy, nearest.cy), max(vr.cy, nearest.cy) + 1):
+                if grid[cy][vr.cx] == WALL_TILE: grid[cy][vr.cx] = FLOOR_TILE
+            for cx in range(min(vr.cx, nearest.cx), max(vr.cx, nearest.cx) + 1):
+                if grid[nearest.cy][cx] == WALL_TILE: grid[nearest.cy][cx] = FLOOR_TILE
+
+        # any vault-border cell that the connector crossed becomes the locked door
+        door_cells = []
+        for ry in range(vr.y, vr.y + vr.h):
+            for rx in range(vr.x, vr.x + vr.w):
+                on_border = rx in (vr.x, vr.x + vr.w - 1) or ry in (vr.y, vr.y + vr.h - 1)
+                if on_border and grid[ry][rx] == FLOOR_TILE:
+                    grid[ry][rx] = DOOR_TILE
+                    door_cells.append({"gx": rx, "gy": ry})
+
+        if not door_cells:
+            continue  # connector never touched the border somehow — retry
+
+        item_cells = vr.inner()
+        random.shuffle(item_cells)
+        return door_cells, item_cells[:2]
+
+    return None, None
 
 
 def get_zone(floor_number):
@@ -150,12 +209,25 @@ def generate_dungeon(floor_number=1, seed=None):
              for c in candidates[:item_count]]
 
     zone_info = ZONES[zone]
+
+    # ── Vault: gated by exactly one NPC on this floor holding the key ──
+    door = None
+    if npcs and random.random() < 0.75:
+        door_cells, item_cells = try_place_vault(grid, rooms, COLS, ROWS)
+        if door_cells:
+            key_holder = random.choice(npcs)
+            key_holder["holds_key"] = True
+            door = {"cells": door_cells}
+            for (ix, iy) in item_cells:
+                items.append({"name": random.choice(VAULT_ITEM_POOL), "gx": ix, "gy": iy})
+
     return {
         "grid": grid, "cols": COLS, "rows": ROWS,
         "rooms": [r.to_dict() for r in rooms],
         "player_start": player_start,
         "stairs": {"gx": sx, "gy": sy},
         "shrine": shrine_pos,
+        "door": door,
         "enemies": enemies,
         "boss": boss,
         "npcs": npcs,

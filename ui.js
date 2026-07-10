@@ -44,6 +44,25 @@ const UI = {
 
   setKills(n) { if (this.killEl) this.killEl.textContent = n; },
 
+  setKey(has) {
+    const el = document.getElementById("key-indicator");
+    if (!el) return;
+    el.classList.toggle("hidden", !has);
+  },
+
+  setCombo(n) {
+    const badge = document.getElementById("combo-badge");
+    const num   = document.getElementById("combo-count");
+    if (!badge || !num) return;
+    if (n >= 2) {
+      num.textContent = n;
+      badge.classList.remove("hidden");
+      badge.classList.remove("combo-pulse"); void badge.offsetWidth; badge.classList.add("combo-pulse");
+    } else {
+      badge.classList.add("hidden");
+    }
+  },
+
   showBoss(boss) {
     this.bossWrap.classList.remove("hidden");
     this.bossName.textContent  = boss.name;
@@ -178,7 +197,7 @@ const Screens = {
   showOverlay(id)  { document.getElementById(id)?.classList.remove("hidden"); },
   hideOverlay(id)  { document.getElementById(id)?.classList.add("hidden"); },
   hideAllOverlays() {
-    ["gameover-screen","victory-screen","floor-clear-screen","loading-screen","levelup-screen"]
+    ["gameover-screen","victory-screen","floor-clear-screen","loading-screen","levelup-screen","pause-screen"]
       .forEach(id => this.hideOverlay(id));
   },
 };

@@ -51,13 +51,16 @@
         · <span id="s-gold">⛁ 0</span>
         · ↑ <span id="s-arrows">5</span>
       </div>
+      <div id="key-indicator" class="hidden">🗝 Vault Key held</div>
     </div>
     <div id="hud-center">
       <div id="floor-label">Floor 1</div>
       <div id="zone-label"></div>
       <div id="kill-counter">Kills: <span id="kill-count">0</span></div>
+      <div id="combo-badge" class="hidden">Combo ×<span id="combo-count">0</span></div>
     </div>
     <div id="hud-right">
+      <button id="btn-pause" aria-label="Pause">⏸</button>
       <canvas id="minimap" width="110" height="88"></canvas>
     </div>
   </div>
@@ -145,6 +148,16 @@
     <h2 class="overlay-title" style="color:#d4aa3a">Arjun grows stronger</h2>
     <div id="levelup-stats" class="overlay-stats"></div>
     <button class="btn-primary" id="btn-levelup-ok">Continue</button>
+  </div>
+</div>
+
+<div id="pause-screen" class="screen overlay hidden">
+  <div class="overlay-box">
+    <div class="overlay-icon" style="color:#3cb8a8">❚❚</div>
+    <h2 class="overlay-title" style="color:#3cb8a8">Paused</h2>
+    <p class="overlay-sub">The dungeon waits. It always does.</p>
+    <button class="btn-primary" onclick="Game._togglePause()">Resume</button>
+    <button class="btn-secondary" onclick="Game.restart()">Main Menu</button>
   </div>
 </div>
 

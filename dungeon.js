@@ -4,6 +4,7 @@ const FLOOR_TILE  = 0;
 const WALL_TILE   = 1;
 const STAIR_TILE  = 3;
 const SHRINE_TILE = 4;
+const DOOR_TILE   = 5;
 
 class Dungeon {
   constructor(data) {
@@ -14,6 +15,7 @@ class Dungeon {
     this.playerStart = data.player_start;
     this.stairsPos   = data.stairs;
     this.shrinePos   = data.shrine || null;
+    this.doorCells   = (data.door && data.door.cells) || [];
     this.enemyData   = data.enemies;
     this.bossData    = data.boss;
     this.npcData     = data.npcs;
@@ -21,6 +23,26 @@ class Dungeon {
     this.floorNumber = data.floor_number;
     this.zone        = data.zone || 1;
     this.zoneName    = data.zone_name || "The Ruins";
+  }
+
+  get hasLockedDoor() {
+    return this.doorCells.some(c => this.grid[c.gy][c.gx] === DOOR_TILE);
+  }
+
+  // Nearest still-locked door cell within range of the player, or null.
+  nearestLockedDoor(player, range) {
+    let best = null, bestD = Infinity;
+    for (const c of this.doorCells) {
+      if (this.grid[c.gy][c.gx] !== DOOR_TILE) continue;
+      const cx = c.gx * TILE + TILE / 2, cy = c.gy * TILE + TILE / 2;
+      const d = Math.hypot(player.x - cx, player.y - cy);
+      if (d <= range && d < bestD) { bestD = d; best = c; }
+    }
+    return best;
+  }
+
+  unlockDoors() {
+    for (const c of this.doorCells) this.grid[c.gy][c.gx] = FLOOR_TILE;
   }
 
   isWalkable(gx, gy) {
@@ -106,6 +128,29 @@ class Dungeon {
           ctx.beginPath();
           ctx.roundRect(sx + 4, sy + 4, TILE - 8, TILE - 8, 4);
           ctx.stroke();
+
+        } else if (tile === DOOR_TILE) {
+          // Locked vault door — reads as a barred, glowing obstruction.
+          ctx.fillStyle = theme.wall;
+          ctx.fillRect(sx, sy, TILE, TILE);
+          const p = 0.5 + 0.5 * Math.sin(tick * 0.05);
+          ctx.fillStyle = "#3a2a10";
+          ctx.fillRect(sx + 3, sy + 2, TILE - 6, TILE - 4);
+          ctx.strokeStyle = `rgba(212,170,58,${0.55 + p * 0.35})`;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(sx + 3, sy + 2, TILE - 6, TILE - 4);
+          // bars
+          ctx.strokeStyle = "rgba(212,170,58,0.55)";
+          ctx.lineWidth = 1.5;
+          for (let bx = sx + 10; bx < sx + TILE - 6; bx += 8) {
+            ctx.beginPath(); ctx.moveTo(bx, sy + 4); ctx.lineTo(bx, sy + TILE - 4); ctx.stroke();
+          }
+          // padlock glyph
+          ctx.fillStyle = `rgba(240,204,96,${0.75 + p * 0.25})`;
+          ctx.font = `bold ${Math.floor(TILE * 0.36)}px sans-serif`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("🔒", sx + TILE / 2, sy + TILE / 2);
+          ctx.textBaseline = "alphabetic";
         }
       }
     }
@@ -144,6 +189,7 @@ class Dungeon {
         if (t === WALL_TILE) continue;
         mmCtx.fillStyle = t === STAIR_TILE  ? "#d4aa3a"
                         : t === SHRINE_TILE ? "#3cdc78"
+                        : t === DOOR_TILE   ? "#f0cc60"
                         : theme.floor;
         mmCtx.fillRect(gx * tw, gy * th, tw + 0.5, th + 0.5);
       }

@@ -134,6 +134,28 @@ kbd{
 }
 #kill-counter{font-size:.68rem;color:var(--text-dim);margin-top:3px}
 
+#combo-badge{
+  font-family:var(--font-d);font-size:.75rem;letter-spacing:.1em;color:#ffd040;
+  margin-top:4px;text-shadow:0 0 12px rgba(255,208,64,.6);
+}
+@keyframes comboPulse{0%{transform:scale(1.35);opacity:.6}100%{transform:scale(1);opacity:1}}
+.combo-pulse{animation:comboPulse .25s cubic-bezier(.3,1.6,.4,1)}
+
+#key-indicator{
+  margin-top:6px;font-size:.68rem;color:#f0cc60;letter-spacing:.06em;
+  display:flex;align-items:center;gap:4px;
+  animation:keyGlow 2s ease-in-out infinite;
+}
+@keyframes keyGlow{0%,100%{opacity:.75}50%{opacity:1;text-shadow:0 0 8px rgba(240,204,96,.7)}}
+
+#btn-pause{
+  display:block;margin:0 0 4px auto;pointer-events:all;cursor:pointer;
+  background:rgba(8,6,18,.88);border:1px solid var(--border);border-top:1px solid var(--gold-dim);
+  color:var(--gold-dim);border-radius:5px;padding:4px 9px;font-size:.85rem;
+  backdrop-filter:blur(10px);transition:color .15s,border-color .15s;
+}
+#btn-pause:hover{color:var(--gold-light);border-color:var(--gold-dim)}
+
 #hud-right canvas{
   display:block;background:rgba(8,6,18,.88);
   border:1px solid var(--border);border-radius:5px;padding:3px;

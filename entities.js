@@ -28,11 +28,16 @@ const BOSS_DEFS = {
 };
 
 const NPC_DEFS = {
-  Draupadi: { colour:"#3cb8a8", role:"sage",     greeting:"Arjun. I knew you'd come this far. The Brahmastra is close — and so is the worst of it." },
-  Karna:    { colour:"#dc9632", role:"rival",    greeting:"Pandava. You've made it further than I expected. Don't let that become overconfidence." },
-  Shakuni:  { colour:"#b450b4", role:"trickster",greeting:"Ah, nephew. The stairs down are just ahead — or are they? I may have moved a few things." },
-  Gandhari: { colour:"#a0c8dc", role:"oracle",   greeting:"I see without eyes, Arjun. Your path ends in light or fire. Perhaps both." },
-  Bhima:    { colour:"#dc6432", role:"ally",     greeting:"Brother! The last three ran when they saw me. They won't get far. Go." },
+  Draupadi: { colour:"#3cb8a8", role:"sage",     greeting:"Arjun. I knew you'd come this far. The Brahmastra is close — and so is the worst of it.",
+              keyLine:"Take this key, Arjun. I have carried it since before you arrived — some doors should only open for a Pandava." },
+  Karna:    { colour:"#dc9632", role:"rival",    greeting:"Pandava. You've made it further than I expected. Don't let that become overconfidence.",
+              keyLine:"Here. A rival's debt, paid in iron. Don't mistake this for friendship — just take the key and go." },
+  Shakuni:  { colour:"#b450b4", role:"trickster",greeting:"Ah, nephew. The stairs down are just ahead — or are they? I may have moved a few things.",
+              keyLine:"A key, for you? How generous of me. Try not to lose it — or do. I do enjoy chaos either way." },
+  Gandhari: { colour:"#a0c8dc", role:"oracle",   greeting:"I see without eyes, Arjun. Your path ends in light or fire. Perhaps both.",
+              keyLine:"I have held this key since I foresaw your footsteps. Take it — the vault was always meant to open for you." },
+  Bhima:    { colour:"#dc6432", role:"ally",     greeting:"Brother! The last three ran when they saw me. They won't get far. Go.",
+              keyLine:"Found this on something that isn't breathing anymore. Figured you'd want it more than the corpse did." },
 };
 
 const ITEM_DEFS = {
@@ -90,6 +95,8 @@ const Audio = {
   dash()    { this._play(300,"sine",0.06,0.1); this._play(400,"sine",0.05,0.06,0.04); },
   death()   { this._play(100,"sawtooth",0.5,0.3); this._play(70,"sawtooth",0.4,0.4,0.1); this._play(50,"sawtooth",0.3,0.5,0.2); },
   stairs()  { [220,330,440].forEach((f,i)=>this._play(f,"sine",0.2,0.15,i*0.12)); },
+  doorUnlock() { this._play(180,"square",0.15,0.22); this._play(260,"square",0.12,0.16,0.08); this._play(340,"square",0.1,0.12,0.16); },
+  keyGet()  { this._play(500,"triangle",0.08,0.15); this._play(700,"triangle",0.1,0.13,0.06); },
 };
 
 // ── Screen shake ──────────────────────────────
@@ -166,6 +173,7 @@ class Player {
     this.bobTick=0;
     this.inventory=[];
     this.kills=0;this.floorsCleared=0;
+    this.hasVaultKey=false;
     this.attackRange=TILE*1.25;
     this.interactRange=TILE*1.8;
     this._dead=false;
@@ -487,9 +495,10 @@ class Enemy {
 
 // ══ NPC ═══════════════════════════════════════
 class NPC {
-  constructor(name,gx,gy){
-    const d=NPC_DEFS[name]||{colour:"#3cb8a8",role:"wanderer",greeting:"..."};
-    this.name=name;this.role=d.role;this.greeting=d.greeting;this.colour=d.colour;
+  constructor(name,gx,gy,holdsKey=false){
+    const d=NPC_DEFS[name]||{colour:"#3cb8a8",role:"wanderer",greeting:"...",keyLine:"Here — take this."};
+    this.name=name;this.role=d.role;this.greeting=d.greeting;this.colour=d.colour;this.keyLine=d.keyLine;
+    this.holdsKey=holdsKey;this.keyGiven=false;
     this.gx=gx;this.gy=gy;
     this.x=gx*TILE+TILE/2;this.y=gy*TILE+TILE/2;
     this.bobTick=0;this.talked=false;this.history=[];
@@ -504,7 +513,8 @@ class NPC {
     const sy=Math.round(this.y-camY+Shake.y)+Math.round(Math.sin(this.bobTick*0.055)*4);
     ctx.save();
     const t=this._animTick*0.03;
-    ctx.strokeStyle=this.colour;ctx.lineWidth=2;ctx.globalAlpha=0.2+Math.sin(t)*0.1;
+    const showKey=this.holdsKey&&!this.keyGiven;
+    ctx.strokeStyle=showKey?"#f0cc60":this.colour;ctx.lineWidth=2;ctx.globalAlpha=0.2+Math.sin(t)*0.1;
     ctx.beginPath();ctx.arc(sx,sy,24,0,Math.PI*2);ctx.stroke();
     ctx.globalAlpha=1;
     const g=ctx.createRadialGradient(sx-4,sy-4,3,sx,sy,16);
@@ -512,10 +522,21 @@ class NPC {
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,16,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle="rgba(255,255,255,0.2)";ctx.lineWidth=1.5;
     ctx.beginPath();ctx.arc(sx,sy,16,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle="rgba(8,6,18,0.85)";ctx.strokeStyle="#d4aa3a";ctx.lineWidth=1;
-    ctx.beginPath();ctx.roundRect(sx-8,sy-42,16,18,4);ctx.fill();ctx.stroke();
-    ctx.fillStyle="#d4aa3a";ctx.font="bold 13px 'Cinzel',serif";ctx.textAlign="center";
-    ctx.fillText("!",sx,sy-28);
+
+    if(showKey){
+      const p=0.5+0.5*Math.sin(this._animTick*0.08);
+      ctx.fillStyle="rgba(8,6,18,0.85)";ctx.strokeStyle="#f0cc60";ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(sx-9,sy-44,18,18,4);ctx.fill();ctx.stroke();
+      ctx.fillStyle=`rgba(240,204,96,${0.8+p*0.2})`;ctx.font="13px sans-serif";
+      ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText("🗝",sx,sy-35);ctx.textBaseline="alphabetic";
+    } else {
+      ctx.fillStyle="rgba(8,6,18,0.85)";ctx.strokeStyle="#d4aa3a";ctx.lineWidth=1;
+      ctx.beginPath();ctx.roundRect(sx-8,sy-42,16,18,4);ctx.fill();ctx.stroke();
+      ctx.fillStyle="#d4aa3a";ctx.font="bold 13px 'Cinzel',serif";ctx.textAlign="center";
+      ctx.fillText("!",sx,sy-28);
+    }
+
     ctx.fillStyle="rgba(8,6,18,0.7)";
     ctx.font="11px 'Cinzel',serif";
     const tw=ctx.measureText(this.name).width+12;
