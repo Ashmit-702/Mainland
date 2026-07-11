@@ -105,6 +105,48 @@ kbd{
 }
 #btn-mute-intro:hover{color:var(--gold-light);border-color:var(--gold-dim);transform:scale(1.08)}
 
+/* ── Lore codex ──────────────────────────────── */
+#lore-screen{align-items:center;padding:2rem 1rem}
+.lore-box{
+  position:relative;text-align:left;
+  background:var(--surface);border:1px solid var(--border2);border-top:1px solid var(--gold-dim);
+  border-radius:12px;padding:2.2rem 2.4rem 2rem;
+  max-width:640px;width:100%;max-height:85vh;overflow-y:auto;
+  box-shadow:0 0 80px rgba(0,0,0,.8);
+  animation:overlayBoxIn .4s cubic-bezier(.2,.9,.3,1.2);
+}
+.lore-box::-webkit-scrollbar{width:8px}
+.lore-box::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.lore-close{
+  position:sticky;top:0;float:right;margin-left:12px;
+  background:rgba(8,6,18,.8);border:1px solid var(--border2);color:var(--text-dim);
+  border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:.85rem;
+  transition:color .15s,border-color .15s;z-index:2;
+}
+.lore-close:hover{color:var(--gold-light);border-color:var(--gold-dim)}
+.lore-title{
+  font-family:var(--font-d);font-size:1.6rem;letter-spacing:.06em;color:var(--gold);
+  margin-bottom:1.2rem;
+}
+.lore-section{margin-bottom:1.6rem}
+.lore-section h3{
+  font-family:var(--font-d);font-size:.85rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--gold-dim);margin-bottom:.6rem;padding-bottom:.4rem;
+  border-bottom:1px solid var(--border);
+}
+.lore-section p{font-size:.92rem;line-height:1.75;color:var(--text-dim)}
+.lore-section p strong{color:var(--text);font-weight:500}
+.lore-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.lore-card{
+  background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;
+  padding:.7rem .9rem;
+}
+.lore-card-name{font-family:var(--font-d);font-size:.85rem;letter-spacing:.04em}
+.lore-card-role{font-size:.68rem;color:var(--text-dim);font-style:italic;margin-bottom:.35rem}
+.lore-card p{font-size:.8rem;line-height:1.55;color:var(--text-dim);margin:0}
+#lore-screen .btn-primary{margin-top:.4rem}
+@media (max-width:560px){ .lore-grid{grid-template-columns:1fr} .lore-box{padding:1.6rem 1.4rem} }
+
 /* ── GAME CANVAS ────────────────────── */
 #game-screen{background:#050310;width:100vw;height:100vh;overflow:hidden}
 #game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh}

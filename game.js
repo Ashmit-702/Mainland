@@ -795,9 +795,10 @@ document.getElementById("btn-pause")?.addEventListener("click", () => Game._togg
 })();
 
 // ── Menu background theme ──────────────────────
-// Drop your own file in as audio/mainland-intro.mp3 (or .ogg) — plays on the
-// menu, fades out once you start a run, fades back in if you return to menu.
-// If the file isn't present yet, this fails silently (no console spam).
+// Drop your own file in as audio/mainland-intro.mp3 (or .ogg) — plays once on
+// the menu (browsers require a first click/tap/key before any sound can play —
+// this fires on whichever comes first). Fades out once a run starts; if you
+// return to the menu it resumes only if it hadn't finished yet, never restarts.
 function _fadeAudioEl(el, target, duration=800) {
   if (!el) return;
   const start = el.volume, delta = target - start, startTime = performance.now();
@@ -811,12 +812,13 @@ function _fadeAudioEl(el, target, duration=800) {
 }
 
 const MenuTheme = {
-  el: null, muted: false, started: false,
+  el: null, muted: false, started: false, finished: false,
 
   init() {
     this.el = document.getElementById("intro-theme");
     if (!this.el) return;
     this.el.volume = 0;
+    this.el.addEventListener("ended", () => { this.finished = true; });
     const tryPlay = () => {
       if (this.started) return;
       this.started = true;
@@ -830,7 +832,7 @@ const MenuTheme = {
 
   duck()   { _fadeAudioEl(this.el, 0, 700); },
   restore(){
-    if (!this.el || this.muted || !this.started) return;
+    if (!this.el || this.muted || !this.started || this.finished) return;
     if (this.el.paused) this.el.play().catch(() => {});
     _fadeAudioEl(this.el, 0.55, 900);
   },
@@ -843,6 +845,17 @@ const MenuTheme = {
 };
 
 document.getElementById("btn-mute-intro")?.addEventListener("click", () => MenuTheme.toggleMute());
+
+document.getElementById("btn-lore")?.addEventListener("click", () => {
+  Screens.showOverlay("lore-screen");
+});
+document.getElementById("btn-lore-close")?.addEventListener("click", () => {
+  Screens.hideOverlay("lore-screen");
+});
+document.getElementById("btn-lore-begin")?.addEventListener("click", () => {
+  Screens.hideOverlay("lore-screen");
+  Game.start();
+});
 
 // ── Boot ──────────────────────────────────────
 MenuTheme.init();

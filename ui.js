@@ -206,7 +206,7 @@ const Screens = {
   showOverlay(id)  { document.getElementById(id)?.classList.remove("hidden"); },
   hideOverlay(id)  { document.getElementById(id)?.classList.add("hidden"); },
   hideAllOverlays() {
-    ["gameover-screen","victory-screen","floor-clear-screen","loading-screen","levelup-screen","pause-screen"]
+    ["gameover-screen","victory-screen","floor-clear-screen","loading-screen","levelup-screen","pause-screen","lore-screen"]
       .forEach(id => this.hideOverlay(id));
   },
 };
