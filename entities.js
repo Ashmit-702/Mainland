@@ -12,12 +12,12 @@ const ZONE_THEMES = {
 
 // ── Entity tables ─────────────────────────────
 const ENEMY_DEFS = {
-  Asura:    { hp:60,  attack:12, speed:2,   colour:"#c84040", xp:30,  shape:"demon",   lore:"A fire-born demon of the elder age." },
-  Rakshasa: { hp:90,  attack:18, speed:1.2, colour:"#8c1e8c", xp:50,  shape:"wraith",  lore:"A shape-shifter that hunts by scent." },
-  Naga:     { hp:45,  attack:8,  speed:3.5, colour:"#1e9050", xp:20,  shape:"serpent", lore:"A serpent spirit guarding forgotten gold." },
-  Pishacha: { hp:70,  attack:14, speed:2.2, colour:"#6050c8", xp:35,  shape:"ghost",   lore:"A flesh-eater born from ancient grief." },
-  Vetala:   { hp:110, attack:22, speed:1,   colour:"#3030a0", xp:60,  shape:"vampire", lore:"A night-walker that inhabits the dead." },
-  Yaksha:   { hp:80,  attack:16, speed:1.8, colour:"#c07820", xp:45,  shape:"guardian",lore:"A spirit-guardian twisted by dark rites." },
+  Asura:    { hp:55,  attack:11, speed:2,   colour:"#c84040", xp:30,  shape:"demon",   kind:"mystic", lore:"A fire-born demon of the elder age. It does not chase — it burns the ground you stand on." },
+  Rakshasa: { hp:100, attack:19, speed:1.2, colour:"#8c1e8c", xp:50,  shape:"wraith",  kind:"melee",  lore:"A shape-shifter that hunts by scent. Slow, but it does not stop hitting once it starts." },
+  Naga:     { hp:42,  attack:9,  speed:3.5, colour:"#1e9050", xp:20,  shape:"serpent", kind:"dasher", lore:"A serpent spirit guarding forgotten gold. It strikes like lightning, then coils to strike again." },
+  Pishacha: { hp:60,  attack:10, speed:2.2, colour:"#6050c8", xp:35,  shape:"ghost",   kind:"archer", lore:"A flesh-eater born from ancient grief. It keeps its distance and hurls its hunger at you." },
+  Vetala:   { hp:95,  attack:15, speed:1,   colour:"#3030a0", xp:60,  shape:"vampire", kind:"archer", lore:"A night-walker that inhabits the dead. Its curse-bolts drain more than they should." },
+  Yaksha:   { hp:85,  attack:13, speed:1.8, colour:"#c07820", xp:45,  shape:"guardian",kind:"mystic", lore:"A spirit-guardian twisted by dark rites. It wards ground with fire it no longer controls." },
 };
 
 const BOSS_DEFS = {
@@ -56,9 +56,15 @@ const ZONE_LORE = {
   3: "Past the crypts, the world stops obeying its own rules. This is the Void Sanctum, and Kali has been waiting here since before there was a 'before'.",
 };
 
-const PROLOGUE_TEXT =
-  "The war is long over. Hastinapur is ash. But something in the deep dark refused to stay buried — " +
-  "and it has taken the Brahmastra with it. Arjun descends alone, because there is no one else left to send.";
+const PROLOGUE_LINES = [
+  "Eighteen days. That is how long the war lasted, and how long it takes for a world to decide what to forget.",
+  "Hastinapur still stands, but hollow — its throne empty, its halls quiet in the particular way a place goes quiet after too much grief.",
+  "Something old stirred in the silence beneath the palace ruins. When it woke, it took the Brahmastra down into the dark with it.",
+  "There is no army left to send after it. There were never enough of them left. There is only Arjun — and the dungeon that used to be a home.",
+];
+
+const KARNA_ARROW_LINE =
+  "One gift, Pandava — the Vasavi Shakti. It answers only once, so choose what you aim it at with care.";
 
 const EPILOGUE_TEXT =
   "The Brahmastra returns to Arjun's hand, and the Mainland exhales for the first time in an age. " +
@@ -97,6 +103,9 @@ const Audio = {
   stairs()  { [220,330,440].forEach((f,i)=>this._play(f,"sine",0.2,0.15,i*0.12)); },
   doorUnlock() { this._play(180,"square",0.15,0.22); this._play(260,"square",0.12,0.16,0.08); this._play(340,"square",0.1,0.12,0.16); },
   keyGet()  { this._play(500,"triangle",0.08,0.15); this._play(700,"triangle",0.1,0.13,0.06); },
+  divineShot() { this._play(600,"sine",0.1,0.2); this._play(900,"sine",0.12,0.18,0.06); this._play(1300,"triangle",0.1,0.22,0.12); },
+  enemyShoot() { this._play(220,"sawtooth",0.06,0.1); },
+  fireCast()   { this._play(140,"sawtooth",0.1,0.25); this._play(90,"sawtooth",0.08,0.2,0.08); },
 };
 
 // ── Screen shake ──────────────────────────────
@@ -115,11 +124,12 @@ const Shake = {
 
 // ── Arrow projectile ──────────────────────────
 class Arrow {
-  constructor(x,y,dx,dy,dmg) {
+  constructor(x,y,dx,dy,dmg,special=false) {
     this.x=x; this.y=y;
-    const spd=10, norm=Math.hypot(dx,dy)||1;
+    const spd=special?13:10, norm=Math.hypot(dx,dy)||1;
     this.vx=dx/norm*spd; this.vy=dy/norm*spd;
     this.damage=dmg; this.alive=true; this.age=0;
+    this.special=special;
     this.trail=[];
   }
   update(dungeon, enemies) {
@@ -131,8 +141,8 @@ class Arrow {
     for(const e of enemies){
       if(e.hp<=0) continue;
       if(Math.hypot(e.x-this.x,e.y-this.y)<18){
-        e.takeDamage(this.damage);
-        this.hitInfo = {enemy:e, dmg:this.damage};
+        const res=e.takeDamage(this.damage, this.special);
+        this.hitInfo = {enemy:e, dmg:res.dmgDealt, special:this.special, justWarded:res.justWarded, executed:res.executed};
         this.alive=false;return;
       }
     }
@@ -141,17 +151,99 @@ class Arrow {
     ctx.save();
     for(let i=0;i<this.trail.length;i++){
       const t=this.trail[i];
-      ctx.globalAlpha=(i/this.trail.length)*0.5;
-      ctx.fillStyle="#d4aa3a";
-      ctx.beginPath();ctx.arc(t.x-camX,t.y-camY,2,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=(i/this.trail.length)*(this.special?0.7:0.5);
+      ctx.fillStyle=this.special?"#ffe080":"#d4aa3a";
+      ctx.beginPath();ctx.arc(t.x-camX,t.y-camY,this.special?3:2,0,Math.PI*2);ctx.fill();
     }
     ctx.globalAlpha=1;
     const sx=this.x-camX,sy=this.y-camY;
     const ang=Math.atan2(this.vy,this.vx);
     ctx.translate(sx,sy);ctx.rotate(ang);
-    ctx.fillStyle="#f0cc60";ctx.fillRect(-8,-1.5,16,3);
-    ctx.fillStyle="#d4aa3a";
-    ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(4,-3);ctx.lineTo(4,3);ctx.closePath();ctx.fill();
+    if(this.special){
+      ctx.shadowColor="#ffe080";ctx.shadowBlur=14;
+      ctx.fillStyle="#fff6d0";ctx.fillRect(-10,-2,20,4);
+      ctx.fillStyle="#ffd040";
+      ctx.beginPath();ctx.moveTo(10,0);ctx.lineTo(4,-5);ctx.lineTo(4,5);ctx.closePath();ctx.fill();
+    } else {
+      ctx.fillStyle="#f0cc60";ctx.fillRect(-8,-1.5,16,3);
+      ctx.fillStyle="#d4aa3a";
+      ctx.beginPath();ctx.moveTo(8,0);ctx.lineTo(4,-3);ctx.lineTo(4,3);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
+// ── EnemyBolt — ranged projectile fired by archer-kind enemies at the player ──
+class EnemyBolt {
+  constructor(x,y,dx,dy,dmg,colour="#ff6040") {
+    this.x=x; this.y=y;
+    const spd=6.2, norm=Math.hypot(dx,dy)||1;
+    this.vx=dx/norm*spd; this.vy=dy/norm*spd;
+    this.damage=dmg; this.alive=true; this.age=0; this.colour=colour;
+    this.trail=[];
+  }
+  update(dungeon, player) {
+    this.trail.push({x:this.x,y:this.y});
+    if(this.trail.length>6) this.trail.shift();
+    this.x+=this.vx; this.y+=this.vy; this.age++;
+    if(!dungeon.isWalkable(Math.floor(this.x/TILE),Math.floor(this.y/TILE))||this.age>160){this.alive=false;return;}
+    if(Math.hypot(player.x-this.x,player.y-this.y)<16){
+      player.takeDamage(this.damage);
+      this.alive=false;
+    }
+  }
+  draw(ctx,camX,camY) {
+    ctx.save();
+    for(let i=0;i<this.trail.length;i++){
+      const t=this.trail[i];
+      ctx.globalAlpha=(i/this.trail.length)*0.4;
+      ctx.fillStyle=this.colour;
+      ctx.beginPath();ctx.arc(t.x-camX,t.y-camY,2.5,0,Math.PI*2);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    ctx.shadowColor=this.colour;ctx.shadowBlur=6;
+    ctx.fillStyle=this.colour;
+    ctx.beginPath();ctx.arc(this.x-camX,this.y-camY,4,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── FireZone — telegraphed AoE hazard cast by mystic-kind enemies ──
+class FireZone {
+  constructor(x,y,radius,dmg,life=170) {
+    this.x=x; this.y=y; this.radius=radius; this.damage=dmg;
+    this.warmup=45; this.life=life; this.maxLife=life; this.tickCd=0; this.alive=true;
+  }
+  update(player) {
+    if(this.warmup>0){ this.warmup--; return; }
+    this.life--;
+    if(this.life<=0){ this.alive=false; return; }
+    if(this.tickCd>0){ this.tickCd--; return; }
+    if(Math.hypot(player.x-this.x,player.y-this.y)<=this.radius){
+      player.takeDamage(this.damage);
+      this.tickCd=26;
+    }
+  }
+  draw(ctx,camX,camY,tick) {
+    const sx=this.x-camX, sy=this.y-camY;
+    ctx.save();
+    if(this.warmup>0){
+      const p=1-this.warmup/45;
+      ctx.globalAlpha=0.55;
+      ctx.strokeStyle="rgba(255,120,40,0.8)";
+      ctx.lineWidth=2;
+      ctx.setLineDash([6,5]);
+      ctx.beginPath();ctx.arc(sx,sy,this.radius*p,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      const a=Math.min(1,this.life/this.maxLife)*0.45+0.15;
+      ctx.globalAlpha=a;
+      const g=ctx.createRadialGradient(sx,sy,4,sx,sy,this.radius);
+      g.addColorStop(0,"rgba(255,140,50,0.55)");g.addColorStop(1,"rgba(255,60,20,0)");
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(sx,sy,this.radius,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle="rgba(255,150,70,0.55)";ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(sx,sy,this.radius,0,Math.PI*2);ctx.stroke();
+    }
     ctx.restore();
   }
 }
@@ -174,6 +266,7 @@ class Player {
     this.inventory=[];
     this.kills=0;this.floorsCleared=0;
     this.hasVaultKey=false;
+    this.specialArrows=0;this.gotKarnaGift=false;
     this.attackRange=TILE*1.25;
     this.interactRange=TILE*1.8;
     this._dead=false;
@@ -231,8 +324,8 @@ class Player {
       if(dist<=this.attackRange){
         const crit = Math.random() < 0.15;
         const dmg  = Math.max(1, Math.round((this.attack-e.defense) * (crit?1.75:1)));
-        e.takeDamage(dmg);
-        hit.push({enemy:e, dmg, crit});
+        const res  = e.takeDamage(dmg, false);
+        hit.push({enemy:e, dmg:res.dmgDealt, crit, justWarded:res.justWarded});
       }
     }
     return hit;
@@ -243,6 +336,15 @@ class Player {
     this.arrows--;
     Audio.shoot();
     const a=new Arrow(this.x,this.y,this.facing.x,this.facing.y,Math.floor(this.attack*0.8));
+    return a;
+  }
+
+  shootSpecialArrow(){
+    // The Vasavi Shakti — Karna's gift. Limited, and worth saving for something that matters.
+    if(this.specialArrows<=0) return null;
+    this.specialArrows--;
+    Audio.divineShot();
+    const a=new Arrow(this.x,this.y,this.facing.x,this.facing.y,Math.floor(this.attack*1.6),true);
     return a;
   }
 
@@ -343,19 +445,26 @@ class Player {
 
 // ══ ENEMY ═════════════════════════════════════
 class Enemy {
-  constructor(name,gx,gy,floorScale=1,isBoss=false){
+  constructor(name,gx,gy,floorScale=1,isBoss=false,elite=false){
     const defs=isBoss?BOSS_DEFS:ENEMY_DEFS;
     const d=defs[name]||Object.values(defs)[0];
     this.name=name;this.isBoss=isBoss;
+    this.isElite=!!elite&&!isBoss;
+    const eliteHpMul=this.isElite?1.9:1, eliteAtkMul=this.isElite?1.35:1;
     this.gx=gx;this.gy=gy;
     this.x=gx*TILE+TILE/2;this.y=gy*TILE+TILE/2;
-    this.maxHp=Math.floor(d.hp*floorScale);this.hp=this.maxHp;
-    this.attack=Math.floor(d.attack*floorScale);this.defense=0;
-    this.speed=d.speed;this.colour=d.colour;
-    this.xpValue=d.xp;this.lore=d.lore||"";this.shape=d.shape||"demon";
+    this.maxHp=Math.floor(d.hp*floorScale*eliteHpMul);this.hp=this.maxHp;
+    this.attack=Math.floor(d.attack*floorScale*eliteAtkMul);this.defense=this.isElite?4:0;
+    this.speed=d.speed*(this.isElite?1.12:1);this.colour=d.colour;
+    this.xpValue=Math.floor(d.xp*(this.isElite?2.2:1));this.lore=d.lore||"";this.shape=d.shape||"demon";
     this.phase2Done=false;this.phase2Threshold=d.phase2??0.5;
     this.state="idle";this.attackCd=0;this.hitFlash=0;this.deathAnim=0;
     this.aggroRange=TILE*(isBoss?9:6);this.attackRange=TILE*1.15;
+    this.kind=isBoss?"boss":(d.kind||"melee");
+    this.rangedCd=50+Math.random()*40;
+    this.preferredRange=this.kind==="archer"?TILE*3.2:this.kind==="mystic"?TILE*3.6:this.attackRange;
+    this.dashPhase="idle";this.dashTimer=0;this.dashDx=0;this.dashDy=0;
+    this.wardThreshold=0.15;this.warded=false;
     this._wanderDir={x:Math.random()*2-1,y:Math.random()*2-1};
     this._wanderT=Math.floor(Math.random()*60+30);
     this._animTick=Math.random()*100;
@@ -364,31 +473,100 @@ class Enemy {
   }
 
   update(player,dungeon){
-    if(this.hp<=0){this.state="dead";this.deathAnim++;return;}
+    if(this.hp<=0){this.state="dead";this.deathAnim++;return null;}
     this._animTick++;
     if(this.hitFlash>0)this.hitFlash--;
     if(this.attackCd>0)this.attackCd--;
+    if(this.rangedCd>0)this.rangedCd--;
     if(this.isBoss&&!this.phase2Done&&this.hp/this.maxHp<=this.phase2Threshold){
       this.phase2Done=true;this.speed+=1;this.attack=Math.floor(this.attack*1.35);
     }
     const dist=Math.hypot(player.x-this.x,player.y-this.y);
     if(dist<=this.aggroRange)this.state="chase";
     else if(this.state!=="attack")this.state="idle";
-    if(this.state==="chase")this._chase(player,dungeon,dist);
-    else this._wander(dungeon);
+
+    let spawn=null;
+    if(this.state==="chase"){
+      if(this.kind==="archer")      spawn=this._behaveArcher(player,dungeon,dist);
+      else if(this.kind==="dasher") spawn=this._behaveDasher(player,dungeon,dist);
+      else if(this.kind==="mystic") spawn=this._behaveMystic(player,dungeon,dist);
+      else                          this._chase(player,dungeon,dist);
+    } else this._wander(dungeon);
+    return spawn;
+  }
+
+  _moveToward(tx,ty,dungeon,spd){
+    const dx=tx-this.x,dy=ty-this.y,norm=Math.hypot(dx,dy)||1;
+    const nx=this.x+(dx/norm)*spd,ny=this.y+(dy/norm)*spd;
+    const gx=Math.floor(nx/TILE),gy=Math.floor(ny/TILE);
+    if(dungeon.isWalkable(gx,gy)){this.x=nx;this.y=ny;this.gx=gx;this.gy=gy;}
+  }
+  _moveAway(tx,ty,dungeon,spd){
+    const dx=this.x-tx,dy=this.y-ty,norm=Math.hypot(dx,dy)||1;
+    const nx=this.x+(dx/norm)*spd,ny=this.y+(dy/norm)*spd;
+    const gx=Math.floor(nx/TILE),gy=Math.floor(ny/TILE);
+    if(dungeon.isWalkable(gx,gy)){this.x=nx;this.y=ny;this.gx=gx;this.gy=gy;}
   }
 
   _chase(player,dungeon,dist){
     if(dist>this.attackRange){
-      const dx=player.x-this.x,dy=player.y-this.y;
-      const norm=Math.hypot(dx,dy)||1;
-      const nx=this.x+(dx/norm)*this.speed,ny=this.y+(dy/norm)*this.speed;
-      const gx=Math.floor(nx/TILE),gy=Math.floor(ny/TILE);
-      if(dungeon.isWalkable(gx,gy)){this.x=nx;this.y=ny;this.gx=gx;this.gy=gy;}
+      this._moveToward(player.x,player.y,dungeon,this.speed);
     } else {
       this.state="attack";
       if(this.attackCd<=0){player.takeDamage(this.attack);this.attackCd=50;}
     }
+  }
+
+  // Archer-kind: keeps distance, peppers the player with bolts.
+  _behaveArcher(player,dungeon,dist){
+    if(dist<this.preferredRange*0.6) this._moveAway(player.x,player.y,dungeon,this.speed*0.8);
+    else if(dist>this.preferredRange*1.3) this._moveToward(player.x,player.y,dungeon,this.speed);
+    if(dist<=this.aggroRange&&this.rangedCd<=0){
+      this.rangedCd=100;
+      const dx=player.x-this.x,dy=player.y-this.y;
+      return {type:"bolt",x:this.x,y:this.y,dx,dy,dmg:Math.floor(this.attack*0.85),colour:this.colour};
+    }
+    return null;
+  }
+
+  // Dasher-kind: telegraphs, then bursts toward the player at high speed.
+  _behaveDasher(player,dungeon,dist){
+    if(this.dashPhase==="idle"){
+      if(dist<=this.preferredRange&&this.rangedCd<=0){
+        this.dashPhase="telegraph";this.dashTimer=26;
+        const dx=player.x-this.x,dy=player.y-this.y,norm=Math.hypot(dx,dy)||1;
+        this.dashDx=dx/norm;this.dashDy=dy/norm;
+      } else {
+        this._chase(player,dungeon,dist);
+      }
+    } else if(this.dashPhase==="telegraph"){
+      this.dashTimer--;
+      if(this.dashTimer<=0){this.dashPhase="dashing";this.dashTimer=14;}
+    } else if(this.dashPhase==="dashing"){
+      this.dashTimer--;
+      const nx=this.x+this.dashDx*this.speed*4.2,ny=this.y+this.dashDy*this.speed*4.2;
+      const gx=Math.floor(nx/TILE),gy=Math.floor(ny/TILE);
+      if(dungeon.isWalkable(gx,gy)){this.x=nx;this.y=ny;this.gx=gx;this.gy=gy;} else this.dashTimer=0;
+      if(Math.hypot(player.x-this.x,player.y-this.y)<this.attackRange&&this.attackCd<=0){
+        player.takeDamage(Math.floor(this.attack*1.3));this.attackCd=40;
+      }
+      if(this.dashTimer<=0){this.dashPhase="recover";this.dashTimer=45;this.rangedCd=110;}
+    } else if(this.dashPhase==="recover"){
+      this.dashTimer--;
+      if(this.dashTimer<=0)this.dashPhase="idle";
+    }
+    return null;
+  }
+
+  // Mystic-kind: hangs back, drops a telegraphed fire zone on the player's position.
+  _behaveMystic(player,dungeon,dist){
+    if(dist<this.preferredRange*0.7) this._moveAway(player.x,player.y,dungeon,this.speed*0.7);
+    else if(dist>this.preferredRange*1.4) this._moveToward(player.x,player.y,dungeon,this.speed*0.8);
+    if(dist<=this.aggroRange*0.9&&this.rangedCd<=0){
+      this.rangedCd=170;
+      return {type:"firezone",x:player.x,y:player.y,dmg:Math.floor(this.attack*0.6)};
+    }
+    return null;
   }
 
   _wander(dungeon){
@@ -403,14 +581,41 @@ class Enemy {
     if(dungeon.isWalkable(gx,gy)){this.x=nx;this.y=ny;this.gx=gx;this.gy=gy;}
   }
 
-  takeDamage(amount){this.hp=Math.max(0,this.hp-amount);this.hitFlash=8;}
+  // Elite enemies "ward" once they drop to wardThreshold of max HP — normal hits
+  // barely chip through (still killable, just slow); a special arrow shatters the
+  // ward and executes them outright. Non-elite enemies just take a special-arrow
+  // damage bonus. Returns {dmgDealt, justWarded, executed} so callers (melee/arrow)
+  // can show accurate floating numbers and one-time ward/execute feedback.
+  takeDamage(amount,special=false){
+    if(this.hp<=0) return {dmgDealt:0,justWarded:false,executed:false};
+    const before=this.hp;
+    let justWarded=false, executed=false;
+    if(this.isElite){
+      const wardHp=Math.ceil(this.maxHp*this.wardThreshold);
+      if(special){
+        if(this.warded) executed=true;
+        this.hp=0;
+      } else if(this.warded){
+        this.hp=Math.max(0,this.hp-amount*0.12);
+      } else {
+        const next=this.hp-amount;
+        if(next<=wardHp){this.hp=wardHp;this.warded=true;justWarded=true;}
+        else this.hp=next;
+      }
+    } else {
+      if(special) amount=Math.round(amount*2.2);
+      this.hp=Math.max(0,this.hp-amount);
+    }
+    this.hitFlash=8;
+    return {dmgDealt:before-this.hp,justWarded,executed};
+  }
   get isDeadDone(){return this.state==="dead"&&this.deathAnim>25;}
 
   draw(ctx,camX,camY){
     if(this.isDeadDone) return;
     const sx=Math.round(this.x-camX+Shake.x);
     const sy=Math.round(this.y-camY+Shake.y);
-    const r=this.isBoss?28:14;
+    const r=(this.isBoss?28:14)*(this.isElite?1.18:1);
     const pulse=Math.sin(this._animTick*0.06)*2;
 
     if(this.state==="dead"){
@@ -432,26 +637,45 @@ class Enemy {
       ctx.beginPath();ctx.arc(sx,sy,r+10+pulse,0,Math.PI*2);ctx.stroke();
       ctx.setLineDash([]);
     }
+    // Dash telegraph — a tightening ring warns of an incoming burst.
+    if(this.dashPhase==="telegraph"){
+      const p=1-this.dashTimer/26;
+      ctx.strokeStyle="rgba(255,220,120,0.85)";ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(sx,sy,r+18-p*14,0,Math.PI*2);ctx.stroke();
+    }
     const glowG=ctx.createRadialGradient(sx,sy,r*0.5,sx,sy,r+8+pulse);
     glowG.addColorStop(0,this.colour+"60");glowG.addColorStop(1,"transparent");
     ctx.fillStyle=glowG;ctx.beginPath();ctx.arc(sx,sy,r+8,0,Math.PI*2);ctx.fill();
 
     ctx.fillStyle=this.hitFlash>0?"#ffffff":this.colour;
     ctx.beginPath();ctx.arc(sx,sy+pulse*0.3,r,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle="rgba(0,0,0,0.4)";ctx.lineWidth=1.5;
+    ctx.strokeStyle=this.isElite?"rgba(240,204,96,0.85)":"rgba(0,0,0,0.4)";
+    ctx.lineWidth=this.isElite?2.5:1.5;
     ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);ctx.stroke();
+
+    // Ward shield shimmer once an elite has dropped into its warded floor.
+    if(this.isElite&&this.warded){
+      const wp=0.5+0.5*Math.sin(this._animTick*0.12);
+      ctx.strokeStyle=`rgba(120,200,255,${0.5+wp*0.4})`;ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(sx,sy,r+6,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=`rgba(120,200,255,${0.15+wp*0.1})`;
+      ctx.beginPath();ctx.arc(sx,sy,r+6,0,Math.PI*2);ctx.fill();
+    }
 
     this._drawShape(ctx,sx,sy+pulse*0.3,r);
 
     const bw=r*2,bx=sx-r,by=sy-r-12;
     ctx.fillStyle="rgba(0,0,0,0.5)";ctx.fillRect(bx-1,by-1,bw+2,7);
     const hpR=this.hp/this.maxHp;
-    ctx.fillStyle=hpR>0.5?"#c84040":"#ff8c00";
+    ctx.fillStyle=this.isElite&&this.warded?"#5090ff":(hpR>0.5?"#c84040":"#ff8c00");
     ctx.fillRect(bx,by,Math.max(0,bw*hpR),5);
 
     if(this.isBoss){
       ctx.fillStyle="#ffd080";ctx.font="bold 12px 'Cinzel',serif";
       ctx.textAlign="center";ctx.fillText(this.name,sx,by-5);
+    } else if(this.isElite){
+      ctx.fillStyle="#f0cc60";ctx.font="bold 10px 'Cinzel',serif";
+      ctx.textAlign="center";ctx.fillText(this.name+" ✦",sx,by-5);
     }
     ctx.restore();
   }

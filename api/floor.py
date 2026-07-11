@@ -171,13 +171,17 @@ def generate_dungeon(floor_number=1, seed=None):
     # enemies
     zone_enemies = ZONES[zone]["enemies"]
     enemies_per_room = 1 + floor_number // 2
+    elite_chance = min(0.32, max(0, floor_number - 1) * 0.045)  # more hardship each level
     enemies = []
     for room in rooms[1:]:
         for _ in range(enemies_per_room):
             pos = room.random_inner()
             if pos not in taken:
                 taken.add(pos)
-                enemies.append({"name": random.choice(zone_enemies), "gx": pos[0], "gy": pos[1]})
+                enemies.append({
+                    "name": random.choice(zone_enemies), "gx": pos[0], "gy": pos[1],
+                    "elite": random.random() < elite_chance,
+                })
 
     # boss
     boss = None

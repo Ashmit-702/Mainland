@@ -71,6 +71,8 @@ const Game = {
   shrine:        null,
   items:         new Map(),
   arrows:        [],
+  enemyBolts:    [],
+  fireZones:     [],
   particles:     [],
   damageNumbers: [],
   activeNPC:     null,
@@ -92,11 +94,22 @@ const Game = {
     await this.loadFloor(1, false);
     Screens.show("game-screen");
     Screens.hideAllOverlays();
-    setTimeout(() => UI.showNarrative(PROLOGUE_TEXT, 6500), 600);
+    setTimeout(() => this._playPrologue(), 500);
     if (!this._loopRunning) {
       this._loopRunning = true;
       requestAnimationFrame(() => this.loop());
     }
+  },
+
+  _playPrologue() {
+    let i = 0;
+    const step = () => {
+      if (i >= PROLOGUE_LINES.length) return;
+      UI.showNarrative(PROLOGUE_LINES[i], 4200);
+      i++;
+      setTimeout(step, 4600);
+    };
+    step();
   },
 
   restart() {
@@ -125,6 +138,8 @@ const Game = {
     this.shrine       = null;
     this.items        = new Map();
     this.arrows       = [];
+    this.enemyBolts   = [];
+    this.fireZones    = [];
     this.particles    = [];
     this.damageNumbers = [];
     this.activeNPC    = null;
@@ -137,6 +152,9 @@ const Game = {
     this.comboTimer   = 0;
     deathAlpha        = 0;
     deathActive       = false;
+    UI.setKey(false);
+    UI.setSpecialArrow(0);
+    UI.setCombo(0);
   },
 
   async loadFloor(n, carryPlayer=true) {
@@ -174,12 +192,12 @@ const Game = {
       this.player = new Player(this.dungeon.playerStart.gx, this.dungeon.playerStart.gy);
     }
 
-    const scale = 1 + (n - 1) * 0.22;
-    this.enemies = data.enemies.map(e => new Enemy(e.name, e.gx, e.gy, scale));
+    const scale = 1 + (n - 1) * 0.26;
+    this.enemies = data.enemies.map(e => new Enemy(e.name, e.gx, e.gy, scale, false, !!e.elite));
 
     this.boss = null; this.bossIntro = false;
     if (data.boss) {
-      const bs = Math.max(1, 1 + (Math.floor(n/3) - 1) * 0.3);
+      const bs = Math.max(1, 1 + (Math.floor(n/3) - 1) * 0.32);
       this.boss = new Enemy(data.boss.name, data.boss.gx, data.boss.gy, bs, true);
     }
 
@@ -188,11 +206,14 @@ const Game = {
     this.items.clear();
     for (const it of data.items) this.items.set(`${it.gx},${it.gy}`, it.name);
     if (this.player) this.player.hasVaultKey = false;
+    UI.setKey(false);
     this.comboCount = 0;
     this.comboTimer = 0;
 
-    this.arrows    = [];
-    this.particles = [];
+    this.arrows     = [];
+    this.enemyBolts = [];
+    this.fireZones  = [];
+    this.particles  = [];
     this.damageNumbers = [];
     deathAlpha     = 0;
     deathActive    = false;
@@ -206,12 +227,15 @@ const Game = {
     UI.hideBoss();
 
     // First-time zone lore gets priority billing; floor narrative follows after.
+    // Floor 1 also plays a multi-line prologue on the same overlay, so push these
+    // back long enough that they don't cut the prologue off mid-sentence.
     const isNewZone = !this._seenZones.has(this.dungeon.zone);
     this._seenZones.add(this.dungeon.zone);
-    const floorNarrativeDelay = isNewZone ? 6200 : 1000;
+    const introDelay = (n === 1) ? 19000 : 0;
+    const floorNarrativeDelay = (isNewZone ? 6200 : 1000) + introDelay;
 
     if (isNewZone && ZONE_LORE[this.dungeon.zone]) {
-      setTimeout(() => UI.showNarrative(ZONE_LORE[this.dungeon.zone], 5500), 900);
+      setTimeout(() => UI.showNarrative(ZONE_LORE[this.dungeon.zone], 5500), 900 + introDelay);
     }
 
     // Floor narrative — fire and forget, never blocks
@@ -247,12 +271,33 @@ const Game = {
     const allTargets = this.boss ? [...this.enemies, this.boss] : [...this.enemies];
     for (const a of this.arrows) {
       a.update(this.dungeon, allTargets);
-      if (a.hitInfo) this._spawnDamageNumber(a.hitInfo.enemy.x, a.hitInfo.enemy.y - 20, a.hitInfo.dmg, false, "#d4aa3a");
+      if (a.hitInfo) {
+        const hi = a.hitInfo;
+        this._spawnDamageNumber(hi.enemy.x, hi.enemy.y - 20, hi.dmg, hi.special, hi.special ? "#ffe080" : "#d4aa3a");
+        if (hi.justWarded) {
+          UI.toast(`${hi.enemy.name}'s ward flares to life — only the Vasavi Shakti can finish it now.`, "bad");
+          Shake.trigger(6, 10);
+        }
+        if (hi.executed) {
+          UI.toast("The Vasavi Shakti finds its mark!", "good");
+          Shake.trigger(14, 18);
+          this._spawnParticles(hi.enemy.x, hi.enemy.y, "#ffe080", 22);
+        }
+      }
     }
     this.arrows = this.arrows.filter(a => a.alive);
 
+    // Enemy ranged/AoE attacks
+    for (const b of this.enemyBolts) b.update(this.dungeon, this.player);
+    this.enemyBolts = this.enemyBolts.filter(b => b.alive);
+    for (const z of this.fireZones) z.update(this.player);
+    this.fireZones = this.fireZones.filter(z => z.alive);
+
     // Enemies
-    for (const e of this.enemies) e.update(this.player, this.dungeon);
+    for (const e of this.enemies) {
+      const spawn = e.update(this.player, this.dungeon);
+      if (spawn) this._handleEnemySpawn(spawn);
+    }
 
     for (const e of this.enemies) {
       if (e.hp <= 0 && !e._xpGiven) {
@@ -405,6 +450,7 @@ const Game = {
 
     this.dungeon.draw(ctx, Camera.x, Camera.y, this.tick);
     this.dungeon.drawItems(ctx, Camera.x, Camera.y, this.items, this.tick);
+    for (const z of this.fireZones) z.draw(ctx, Camera.x, Camera.y, this.tick);
     for (const npc of this.npcs) npc.draw(ctx, Camera.x, Camera.y);
     if (this.shrine) this.shrine.draw(ctx, Camera.x, Camera.y);
     for (const e of this.enemies) e.draw(ctx, Camera.x, Camera.y);
@@ -419,6 +465,7 @@ const Game = {
     }
 
     for (const a of this.arrows) a.draw(ctx, Camera.x, Camera.y);
+    for (const b of this.enemyBolts) b.draw(ctx, Camera.x, Camera.y);
     if (this.player && !this.player._dead) this.player.draw(ctx, Camera.x, Camera.y);
 
     for (const d of this.damageNumbers) {
@@ -454,7 +501,7 @@ const Game = {
       ctx.textAlign = "left";
       const hint = document.body.classList.contains("touch-device")
         ? "Joystick: move  ·  ⚔ Attack  ·  ↑ Arrow  ·  ⚡ Dash  ·  E: talk/shrine"
-        : "WASD: move  ·  Space: attack  ·  Shift: dash  ·  Q: shoot  ·  E: talk/shrine";
+        : "WASD: move  ·  Space: attack  ·  Shift: dash  ·  Q: shoot  ·  R: divine arrow  ·  E: talk/shrine";
       ctx.fillText(hint, 14, canvas.height - 12);
     }
   },
@@ -477,6 +524,10 @@ const Game = {
     for (const h of hits) {
       this._spawnDamageNumber(h.enemy.x, h.enemy.y - 20, h.dmg, h.crit);
       if (h.crit) UI.toast(`Critical hit! −${h.dmg}`, "good");
+      if (h.justWarded) {
+        UI.toast(`${h.enemy.name}'s ward flares to life — only the Vasavi Shakti can finish it now.`, "bad");
+        Shake.trigger(6, 10);
+      }
     }
   },
 
@@ -493,6 +544,26 @@ const Game = {
     const a = this.player.shootArrow();
     if (a) this.arrows.push(a);
     else UI.toast("No arrows — find a Quiver!", "bad");
+  },
+
+  _shootSpecialArrow() {
+    if (this.state !== "playing" || !this.player) return;
+    if (this.player.specialArrows <= 0) { UI.toast("No divine arrow ready.", "bad"); return; }
+    const a = this.player.shootSpecialArrow();
+    if (a) {
+      this.arrows.push(a);
+      UI.setSpecialArrow(this.player.specialArrows);
+    }
+  },
+
+  _handleEnemySpawn(spawn) {
+    if (spawn.type === "bolt") {
+      this.enemyBolts.push(new EnemyBolt(spawn.x, spawn.y, spawn.dx, spawn.dy, spawn.dmg, spawn.colour));
+      Audio.enemyShoot();
+    } else if (spawn.type === "firezone") {
+      this.fireZones.push(new FireZone(spawn.x, spawn.y, TILE * 1.4, spawn.dmg));
+      Audio.fireCast();
+    }
   },
 
   _registerCombo() {
@@ -535,15 +606,28 @@ const Game = {
     this.activeNPC = npc;
     this.state     = "dialogue";
 
-    // Key handoff — a one-time, guaranteed moment tied to this specific character.
-    if (npc.holdsKey && !npc.keyGiven && !this.player.hasVaultKey) {
-      npc.keyGiven = true;
-      npc.talked = true;
-      this.player.hasVaultKey = true;
-      UI.setKey(true);
+    // Special one-time moments tied to specific characters — checked together so a
+    // character who happens to both hold the key AND be Karna isn't shortchanged.
+    const grantsKey   = npc.holdsKey && !npc.keyGiven && !this.player.hasVaultKey;
+    const grantsArrow = npc.name === "Karna" && !this.player.gotKarnaGift;
+
+    if (grantsKey || grantsArrow) {
+      const lines = [];
+      if (grantsKey) {
+        npc.keyGiven = true; npc.talked = true; this.player.hasVaultKey = true;
+        UI.setKey(true);
+        lines.push(npc.keyLine);
+        UI.toast(`${npc.name} gives you the Vault Key.`, "good");
+      }
+      if (grantsArrow) {
+        this.player.gotKarnaGift = true;
+        this.player.specialArrows += 1;
+        UI.setSpecialArrow(this.player.specialArrows);
+        lines.push(KARNA_ARROW_LINE);
+        UI.toast("Karna gifts you the Vasavi Shakti.", "good");
+      }
       Audio.keyGet();
-      Dialogue.open(npc.name, npc.role, npc.keyLine);
-      UI.toast(`${npc.name} gives you the Vault Key.`, "good");
+      Dialogue.open(npc.name, npc.role, lines.join("  "));
       return;
     }
 
@@ -608,6 +692,7 @@ function handleKeyDown(e) {
   if (e.code === "Space")   { e.preventDefault(); Game._doAttack(); return; }
   if (e.code === "ShiftLeft"||e.code==="ShiftRight") { e.preventDefault(); Game.player?.dash(); return; }
   if (e.code === "KeyQ")    { e.preventDefault(); Game._shootArrow(); return; }
+  if (e.code === "KeyR")    { e.preventDefault(); Game._shootSpecialArrow(); return; }
   if (e.key  === "e"||e.key==="E") {
     e.preventDefault();
     if (Game._tryDoor()) return;
@@ -695,6 +780,7 @@ document.getElementById("btn-pause")?.addEventListener("click", () => Game._togg
   }
   bindTap("touch-attack",   () => Game._doAttack());
   bindTap("touch-arrow",    () => Game._shootArrow());
+  bindTap("touch-special",  () => Game._shootSpecialArrow());
   bindTap("touch-dash",     () => Game.player?.dash());
   bindTap("touch-interact", () => {
     if (Game.state === "dialogue") { Game._endDialogue(); return; }

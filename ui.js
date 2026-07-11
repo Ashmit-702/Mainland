@@ -50,6 +50,15 @@ const UI = {
     el.classList.toggle("hidden", !has);
   },
 
+  setSpecialArrow(n) {
+    const el = document.getElementById("special-arrow-indicator");
+    const num = document.getElementById("special-arrow-count");
+    const touchBtn = document.getElementById("touch-special");
+    if (el) { el.classList.toggle("hidden", n <= 0); }
+    if (num) num.textContent = n;
+    if (touchBtn) touchBtn.classList.toggle("hidden", n <= 0);
+  },
+
   setCombo(n) {
     const badge = document.getElementById("combo-badge");
     const num   = document.getElementById("combo-count");
