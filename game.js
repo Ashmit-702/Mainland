@@ -86,6 +86,7 @@ const Game = {
 
   async start() {
     Audio.init();
+    MenuTheme.duck();
     this.floorNumber = 1;
     this.player      = null;
     this._seenZones  = new Set();
@@ -117,6 +118,7 @@ const Game = {
     Dialogue.close();
     Screens.hideAllOverlays();
     Screens.show("menu-screen");
+    MenuTheme.restore();
     initMenuParticles();
     animateMenuParticles();
   },
@@ -792,6 +794,57 @@ document.getElementById("btn-pause")?.addEventListener("click", () => Game._togg
   });
 })();
 
+// ── Menu background theme ──────────────────────
+// Drop your own file in as audio/mainland-intro.mp3 (or .ogg) — plays on the
+// menu, fades out once you start a run, fades back in if you return to menu.
+// If the file isn't present yet, this fails silently (no console spam).
+function _fadeAudioEl(el, target, duration=800) {
+  if (!el) return;
+  const start = el.volume, delta = target - start, startTime = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    el.volume = start + delta * t;
+    if (t < 1) requestAnimationFrame(step);
+    else if (target === 0) el.pause();
+  }
+  requestAnimationFrame(step);
+}
+
+const MenuTheme = {
+  el: null, muted: false, started: false,
+
+  init() {
+    this.el = document.getElementById("intro-theme");
+    if (!this.el) return;
+    this.el.volume = 0;
+    const tryPlay = () => {
+      if (this.started) return;
+      this.started = true;
+      this.el.play()
+        .then(() => _fadeAudioEl(this.el, this.muted ? 0 : 0.55, 1200))
+        .catch(() => {}); // file missing, or browser blocked it — stay silent
+    };
+    window.addEventListener("pointerdown", tryPlay, { once:true });
+    window.addEventListener("keydown", tryPlay, { once:true });
+  },
+
+  duck()   { _fadeAudioEl(this.el, 0, 700); },
+  restore(){
+    if (!this.el || this.muted || !this.started) return;
+    if (this.el.paused) this.el.play().catch(() => {});
+    _fadeAudioEl(this.el, 0.55, 900);
+  },
+  toggleMute() {
+    this.muted = !this.muted;
+    _fadeAudioEl(this.el, this.muted ? 0 : 0.55, 400);
+    const btn = document.getElementById("btn-mute-intro");
+    if (btn) btn.textContent = this.muted ? "🔇" : "🔊";
+  },
+};
+
+document.getElementById("btn-mute-intro")?.addEventListener("click", () => MenuTheme.toggleMute());
+
 // ── Boot ──────────────────────────────────────
+MenuTheme.init();
 initMenuParticles();
 animateMenuParticles();
