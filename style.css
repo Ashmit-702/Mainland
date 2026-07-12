@@ -1,4 +1,24 @@
 /* MAINLAND — style.css — Royal Dark Edition */
+
+/* Self-hosted fonts — previously loaded from Google Fonts, which some
+   browsers/privacy tools (Brave Shields, ad-blockers, strict firewalls)
+   block outright. A blocked font silently falls back to a generic serif
+   at the same font-size, and a heavy/bold generic serif can render far
+   wider than Cinzel does — that's what was causing the title overflow
+   that only some visitors saw. Self-hosting removes the dependency. */
+@font-face{
+  font-family:'Cinzel';src:url('fonts/Cinzel.woff2') format('woff2');
+  font-weight:400 900;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:'Crimson Pro';src:url('fonts/CrimsonPro.woff2') format('woff2');
+  font-weight:300 400;font-style:normal;font-display:swap;
+}
+@font-face{
+  font-family:'Crimson Pro';src:url('fonts/CrimsonPro-Italic.woff2') format('woff2');
+  font-weight:300;font-style:italic;font-display:swap;
+}
+
 :root {
   --bg:        #080612;
   --surface:   #100c20;
