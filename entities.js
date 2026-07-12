@@ -8,6 +8,7 @@ const ZONE_THEMES = {
   1: { floor:"#1e1638", wall:"#0e0820", wallTop:"#1a0f30", accent:"#6040a0", fog:"rgba(20,10,40,0.0)"  },
   2: { floor:"#2a0f10", wall:"#180508", wallTop:"#280a0c", accent:"#a03030", fog:"rgba(40,5,5,0.0)"    },
   3: { floor:"#080818", wall:"#050510", wallTop:"#0a0a20", accent:"#204080", fog:"rgba(5,5,20,0.0)"    },
+  4: { floor:"#241008", wall:"#140804", wallTop:"#20100a", accent:"#c86020", fog:"rgba(50,10,0,0.0)"   },
 };
 
 // ── Entity tables ─────────────────────────────
@@ -54,6 +55,7 @@ const ZONE_LORE = {
   1: "The Outer Ruins were once the outer wall of Indraprastha. Now the stones remember only fire, and the things that walk here remember only hunger.",
   2: "Below the ruins lie the Blood Crypts — where Duryodhana's court was buried alive rather than kneel. Their envy did not die with them.",
   3: "Past the crypts, the world stops obeying its own rules. This is the Void Sanctum, and Kali has been waiting here since before there was a 'before'.",
+  4: "There is no ruin left to walk through. This is the Field of Kurukshetra itself, remembered into being — and it remembers exactly how the war ended.",
 };
 
 const PROLOGUE_LINES = [

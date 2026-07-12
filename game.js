@@ -43,6 +43,8 @@ window.addEventListener("keyup",   e => { Keys[e.key]=false; Keys[e.code]=false;
 const API_BASE = (window.location.hostname==="localhost"||window.location.hostname==="127.0.0.1")
   ? "http://localhost:3000" : "";
 
+const TOTAL_FLOORS = 7; // 6 exploration floors + Floor 7: The Final War
+
 // Safe fetch — never throws, never blocks game loop
 function safeFetch(url, body) {
   return fetch(url, {
@@ -152,6 +154,11 @@ const Game = {
     this._seenZones   = new Set();
     this.comboCount   = 0;
     this.comboTimer   = 0;
+    this.isFinalWar     = false;
+    this.waveIndex       = -1;
+    this.waveActive       = false;
+    this.arenaTriggered  = false;
+    this._waveClearedAt  = 0;
     deathAlpha        = 0;
     deathActive       = false;
     UI.setKey(false);
@@ -162,10 +169,10 @@ const Game = {
   async loadFloor(n, carryPlayer=true) {
     Screens.showOverlay("loading-screen");
     document.getElementById("loading-text").textContent =
-      n%3===0 ? `Summoning ${n>=9?"Kali":"Duryodhana"}…`
-      : n<=3 ? "Carving the Outer Ruins…"
-      : n<=6 ? "Flooding the Blood Crypts…"
-             : "Opening the Void Sanctum…";
+      n >= TOTAL_FLOORS ? "Marshaling the Field of Kurukshetra…"
+      : n <= 2 ? "Carving the Outer Ruins…"
+      : n <= 4 ? "Flooding the Blood Crypts…"
+               : "Opening the Void Sanctum…";
 
     const data = await safeFetch(`${API_BASE}/api/floor`, {
       floor_number: n,
@@ -223,6 +230,13 @@ const Game = {
     // FIX: track total enemies so we know when ALL are dead
     this._totalEnemies = this.enemies.length + (this.boss ? 1 : 0);
     this._killedCount  = 0;
+
+    // Final War (floor 7) — scripted wave siege instead of stairs-gated clear
+    this.isFinalWar    = this.dungeon.isFinalWar;
+    this.waveIndex      = -1;
+    this.waveActive      = false;
+    this.arenaTriggered = false;
+    this._waveClearedAt = 0;
 
     UI.setFloor(n, data.zone_name);
     UI.setKills(this.player.kills);
@@ -403,32 +417,30 @@ const Game = {
       this.boss ? [...this.enemies, this.boss] : this.enemies,
       this.npcs, this.dungeon);
 
-    // ── STAIRS ──
-    // FIX: must have killed ALL enemies that spawned (not just current array)
-    // This prevents empty-array-passes-every() bug
-    const allKilled = this._killedCount >= this._totalEnemies;
-    const nearStairs =
-      Math.abs(this.player.gx - this.dungeon.stairsPos.gx) <= 1 &&
-      Math.abs(this.player.gy - this.dungeon.stairsPos.gy) <= 1;
+    // ── STAIRS (normal floors) / FINAL WAR (floor 7) ──
+    if (this.isFinalWar) {
+      this._updateFinalWar();
+    } else {
+      // FIX: must have killed ALL enemies that spawned (not just current array)
+      // This prevents empty-array-passes-every() bug
+      const allKilled = this._killedCount >= this._totalEnemies;
+      const nearStairs =
+        Math.abs(this.player.gx - this.dungeon.stairsPos.gx) <= 1 &&
+        Math.abs(this.player.gy - this.dungeon.stairsPos.gy) <= 1;
 
-    if (nearStairs && allKilled) {
-      this.state = "floor_clear";
-      Audio.stairs();
-      if (this.floorNumber >= 9) {
-        UI.showVictoryStats(this.player);
-        Screens.showOverlay("victory-screen");
-        setTimeout(() => UI.showNarrative(EPILOGUE_TEXT, 7000), 400);
-      } else {
+      if (nearStairs && allKilled) {
+        this.state = "floor_clear";
+        Audio.stairs();
         UI.showFloorClearStats(this.player, this.floorNumber, this.dungeon.zoneName);
         Screens.showOverlay("floor-clear-screen");
+        return;
       }
-      return;
-    }
 
-    // Show hint if near stairs but enemies remain
-    if (nearStairs && !allKilled) {
-      const remaining = this._totalEnemies - this._killedCount;
-      UI.toast(`${remaining} enemy${remaining>1?"s":""} remain — clear them first!`, "bad");
+      // Show hint if near stairs but enemies remain
+      if (nearStairs && !allKilled) {
+        const remaining = this._totalEnemies - this._killedCount;
+        UI.toast(`${remaining} enemy${remaining>1?"s":""} remain — clear them first!`, "bad");
+      }
     }
 
     // ── DEATH ──
@@ -602,6 +614,76 @@ const Game = {
     this.player.useShrine();
     UI.toast("Shrine mends your wounds. −⛁30", "good");
     this._spawnParticles(this.shrine.x, this.shrine.y, "#3cdc78", 12);
+  },
+
+  // ── Final War (floor 7) — scripted multi-wave siege ──
+  _updateFinalWar() {
+    const arena = this.dungeon.arena;
+    if (!arena) return;
+
+    if (!this.arenaTriggered) {
+      const inArena =
+        this.player.gx >= arena.x && this.player.gx < arena.x + arena.w &&
+        this.player.gy >= arena.y && this.player.gy < arena.y + arena.h;
+      if (inArena) { this.arenaTriggered = true; this._startFinalWar(); }
+      return;
+    }
+
+    if (this.waveActive) {
+      const wave = this.dungeon.waves[this.waveIndex];
+      const cleared = wave.type === "boss" ? (this.boss === null) : (this.enemies.length === 0);
+      if (cleared) { this.waveActive = false; this._waveClearedAt = this.tick; }
+      return;
+    }
+
+    if (this.tick - this._waveClearedAt > 90) this._advanceWave();
+  },
+
+  _startFinalWar() {
+    UI.toast("The Final War begins.", "bad");
+    UI.showNarrative("There is no floor beneath this one. Only the field, and what's left standing on it.", 5000);
+    Shake.trigger(10, 24);
+    this._waveClearedAt = this.tick;
+  },
+
+  _advanceWave() {
+    this.waveIndex++;
+    const waves = this.dungeon.waves;
+    if (this.waveIndex >= waves.length) { this._finalWarVictory(); return; }
+
+    const wave = waves[this.waveIndex];
+    this.waveActive = true;
+    UI.toast(wave.label, "bad");
+    UI.showNarrative(wave.label, 3800);
+    Shake.trigger(8, 16);
+
+    if (wave.type === "boss") this._spawnWaveBoss(wave.boss);
+    else this._spawnWaveEnemies(wave.enemies, wave.type === "elites");
+  },
+
+  _spawnWaveEnemies(names, elite) {
+    const arena = this.dungeon.arena;
+    const scale = 1 + (this.floorNumber - 1) * 0.26;
+    for (const name of names) {
+      const gx = arena.x + 1 + Math.floor(Math.random() * Math.max(1, arena.w - 2));
+      const gy = arena.y + 1 + Math.floor(Math.random() * Math.max(1, arena.h - 2));
+      this.enemies.push(new Enemy(name, gx, gy, scale, false, elite));
+    }
+  },
+
+  _spawnWaveBoss(name) {
+    const arena = this.dungeon.arena;
+    this.boss = new Enemy(name, arena.cx, arena.cy, 1.6, true);
+    this.bossIntro = false;
+    UI.hideBoss(); // reappears once the existing proximity-based intro fires
+  },
+
+  _finalWarVictory() {
+    this.state = "floor_clear";
+    Audio.stairs();
+    UI.showVictoryStats(this.player);
+    Screens.showOverlay("victory-screen");
+    setTimeout(() => UI.showNarrative(EPILOGUE_TEXT, 7000), 400);
   },
 
   _startDialogue(npc) {

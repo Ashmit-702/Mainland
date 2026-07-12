@@ -116,9 +116,7 @@ const UI = {
   showFloorClearStats(p, floor, zoneName) {
     const sub   = document.getElementById("floor-clear-sub");
     const stats = document.getElementById("floor-clear-stats");
-    if (sub)   sub.textContent = floor % 3 === 0
-      ? "The boss falls. Silence reclaims the hall."
-      : `${zoneName || "The floor"} — darkness retreats.`;
+    if (sub)   sub.textContent = `${zoneName || "The floor"} — darkness retreats.`;
     if (stats) stats.innerHTML =
       `<strong>Floor ${floor} cleared</strong><br>
        Level ${p.level} · ${p.kills} kills · ⛁ ${p.gold}`;

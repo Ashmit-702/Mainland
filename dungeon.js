@@ -23,6 +23,9 @@ class Dungeon {
     this.floorNumber = data.floor_number;
     this.zone        = data.zone || 1;
     this.zoneName    = data.zone_name || "The Ruins";
+    this.isFinalWar  = !!data.is_final_war;
+    this.arena       = data.arena || null;
+    this.waves       = data.waves || [];
   }
 
   get hasLockedDoor() {
