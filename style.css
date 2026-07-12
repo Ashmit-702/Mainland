@@ -19,7 +19,7 @@
   --font-b:    'Crimson Pro', Georgia, serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{overscroll-behavior:none}
+html{overscroll-behavior:none;overflow-x:hidden}
 body{
   background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:hidden;
   height:100dvh;width:100dvw;
@@ -58,8 +58,8 @@ body{
 }
 
 .game-title{
-  font-family:var(--font-d);font-size:clamp(4rem,13vw,7rem);font-weight:900;
-  letter-spacing:.14em;line-height:1;
+  font-family:var(--font-d);font-size:clamp(2.2rem,13vw,7rem);font-weight:900;
+  letter-spacing:.14em;line-height:1;max-width:100%;
   background:linear-gradient(160deg,#f0cc60 0%,#d4aa3a 40%,#a07820 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
   filter:drop-shadow(0 0 40px rgba(212,170,58,.4));
@@ -419,6 +419,15 @@ body.touch-device #touch-controls{display:block}
 
 /* ── Mobile / small-screen tightening ───────────*/
 @media (max-width:480px){
+  .menu-content{padding:1.4rem 1.1rem;gap:1rem}
+  .title-eyebrow{font-size:.62rem;letter-spacing:.2em}
+  .game-title{letter-spacing:.08em}
+  .tagline{font-size:.98rem;line-height:1.7}
+  .key-legend{gap:.5rem .8rem;font-size:.72rem}
+  .btn-primary{padding:.75rem 2rem;font-size:.76rem}
+  #btn-mute-intro{top:12px;right:12px;width:34px;height:34px}
+  .ai-badge{font-size:.64rem;padding:3px 10px}
+
   #hud{padding:8px 8px 0}
   #hud-left{min-width:0;padding:7px 10px;max-width:58vw}
   .hud-name{font-size:.6rem;margin-bottom:5px}
@@ -441,6 +450,12 @@ body.touch-device #touch-controls{display:block}
   .bar-row{margin-bottom:3px}
   #dash-bar-wrap{bottom:10px}
   #touch-joystick-zone{height:70vh}
+}
+@media (max-width:360px){
+  .game-title{font-size:11vw;letter-spacing:.05em}
+  .title-eyebrow{font-size:.56rem;letter-spacing:.16em}
+  .key-legend{font-size:.66rem;gap:.4rem .6rem}
+  .tagline{font-size:.9rem}
 }
 
 /* ── Rotate suggestion (narrow portrait only, dismissible, never blocks play) ──*/
