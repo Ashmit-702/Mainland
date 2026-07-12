@@ -97,6 +97,7 @@ const Game = {
     await this.loadFloor(1, false);
     Screens.show("game-screen");
     Screens.hideAllOverlays();
+    _maybeSuggestLandscape();
     setTimeout(() => this._playPrologue(), 500);
     if (!this._loopRunning) {
       this._loopRunning = true;
@@ -938,8 +939,23 @@ document.getElementById("btn-lore-begin")?.addEventListener("click", () => {
   Screens.hideOverlay("lore-screen");
   Game.start();
 });
+document.getElementById("btn-dialogue-close")?.addEventListener("click", () => Game._endDialogue());
 
 // ── Boot ──────────────────────────────────────
+function _maybeSuggestLandscape() {
+  const narrowPortrait = window.innerHeight > window.innerWidth && window.innerWidth < 700;
+  if (!narrowPortrait || document.getElementById("rotate-hint")) return;
+  const el = document.createElement("div");
+  el.id = "rotate-hint";
+  el.innerHTML = `↻ Rotating to landscape gives more room to fight <button aria-label="Dismiss">✕</button>`;
+  el.querySelector("button").addEventListener("click", () => el.remove());
+  document.getElementById("game-screen")?.appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+window.addEventListener("orientationchange", () => {
+  document.getElementById("rotate-hint")?.remove();
+});
+
 MenuTheme.init();
 initMenuParticles();
 animateMenuParticles();

@@ -19,7 +19,17 @@
   --font-b:    'Crimson Pro', Georgia, serif;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:hidden;height:100dvh;width:100dvw}
+html{overscroll-behavior:none}
+body{
+  background:var(--bg);color:var(--text);font-family:var(--font-b);overflow:hidden;
+  height:100dvh;width:100dvw;
+  overscroll-behavior:none;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;
+}
+/* Text the player actually needs to select/scroll stays usable */
+#dialogue-text,.lore-box{-webkit-user-select:text;user-select:text}
+.lore-box{touch-action:pan-y}
 
 /* ── SCREENS ────────────────────────── */
 .screen{position:fixed;inset:0;display:none}
@@ -257,6 +267,13 @@ kbd{
   border-bottom:1px solid rgba(212,170,58,.2);
   padding:10px 20px;display:flex;align-items:center;gap:12px;
 }
+#btn-dialogue-close{
+  margin-left:auto;pointer-events:all;cursor:pointer;
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,170,58,.25);
+  color:var(--text-dim);border-radius:50%;width:26px;height:26px;font-size:.72rem;
+  transition:color .15s,border-color .15s;
+}
+#btn-dialogue-close:hover{color:var(--gold-light);border-color:var(--gold-dim)}
 #dialogue-speaker{
   font-family:var(--font-d);font-size:.78rem;letter-spacing:.16em;
   color:var(--gold);text-transform:uppercase;
@@ -399,6 +416,45 @@ body.touch-device #touch-controls{display:block}
 }
 .touch-btn-small{width:44px;height:44px;font-size:.85rem;right:110px;bottom:0}
 @media (min-width:900px) and (pointer:fine){ #touch-controls{display:none!important} }
+
+/* ── Mobile / small-screen tightening ───────────*/
+@media (max-width:480px){
+  #hud{padding:8px 8px 0}
+  #hud-left{min-width:0;padding:7px 10px;max-width:58vw}
+  .hud-name{font-size:.6rem;margin-bottom:5px}
+  .bar-label{width:18px;font-size:.55rem}
+  .bar-track{height:7px}
+  .bar-num{font-size:.6rem;min-width:44px}
+  #stat-row{font-size:.62rem}
+  #key-indicator,#special-arrow-indicator{font-size:.6rem}
+  #floor-label{font-size:.68rem}
+  #kill-counter,#combo-badge{font-size:.6rem}
+  #hud-right canvas{width:76px;height:60px}
+  #btn-pause{padding:3px 7px;font-size:.75rem}
+  .overlay-box{padding:1.8rem 1.4rem;max-width:92vw}
+  .overlay-title{font-size:1.4rem}
+  #dialogue-text{font-size:.95rem;padding:14px 16px 8px}
+  #dialogue-header{padding:8px 14px}
+}
+@media (max-height:420px) and (orientation:landscape){
+  #hud-left{padding:5px 8px}
+  .bar-row{margin-bottom:3px}
+  #dash-bar-wrap{bottom:10px}
+  #touch-joystick-zone{height:70vh}
+}
+
+/* ── Rotate suggestion (narrow portrait only, dismissible, never blocks play) ──*/
+#rotate-hint{
+  position:fixed;top:10px;left:50%;transform:translateX(-50%);
+  z-index:60;background:rgba(8,6,18,.9);border:1px solid var(--gold-dim);
+  border-radius:20px;padding:6px 14px;font-size:.72rem;color:var(--gold-light);
+  display:flex;align-items:center;gap:8px;pointer-events:all;
+  animation:overlayFadeIn .4s ease;
+}
+#rotate-hint button{
+  background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:.85rem;
+  pointer-events:all;
+}
 
 /* ── Zone label ──────────────────────────────── */
 #zone-label{font-size:.62rem;letter-spacing:.18em;color:var(--gold-dim);text-transform:uppercase;margin-top:2px}
