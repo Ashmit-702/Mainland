@@ -942,6 +942,29 @@ document.getElementById("btn-lore-begin")?.addEventListener("click", () => {
 document.getElementById("btn-dialogue-close")?.addEventListener("click", () => Game._endDialogue());
 
 // ── Boot ──────────────────────────────────────
+// Runtime title auto-fit — a hard guarantee against overflow that doesn't depend
+// on getting font-metrics/vw-math right for every browser/engine/font-fallback
+// combination. Measures the ACTUAL rendered width and shrinks until it fits.
+function fitGameTitle() {
+  const el = document.querySelector(".game-title");
+  const container = document.querySelector(".menu-content");
+  if (!el || !container) return;
+  el.style.fontSize = "";
+  requestAnimationFrame(() => {
+    const maxWidth = container.clientWidth - 8; // small safety margin
+    let fontSize = parseFloat(getComputedStyle(el).fontSize);
+    let guard = 0;
+    while (el.scrollWidth > maxWidth && fontSize > 18 && guard < 60) {
+      fontSize -= 1;
+      el.style.fontSize = fontSize + "px";
+      guard++;
+    }
+  });
+}
+window.addEventListener("load", fitGameTitle);
+window.addEventListener("resize", fitGameTitle);
+document.fonts?.ready?.then(fitGameTitle); // re-fit once webfonts actually finish loading
+
 function _maybeSuggestLandscape() {
   const narrowPortrait = window.innerHeight > window.innerWidth && window.innerWidth < 700;
   if (!narrowPortrait || document.getElementById("rotate-hint")) return;
