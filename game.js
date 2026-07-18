@@ -991,7 +991,6 @@ document.getElementById("btn-mute-intro")?.addEventListener("click", () => MenuT
 
 document.getElementById("btn-lore")?.addEventListener("click", () => {
   Screens.showOverlay("lore-screen");
-  dismissLoreCta();
 });
 document.getElementById("btn-lore-close")?.addEventListener("click", () => {
   Screens.hideOverlay("lore-screen");
@@ -1003,23 +1002,9 @@ document.getElementById("btn-lore-begin")?.addEventListener("click", () => {
 document.getElementById("btn-dialogue-close")?.addEventListener("click", () => Game._endDialogue());
 
 // ── Lore call-to-action ────────────────────────
-// Reveal a couple seconds after landing on the menu (let the title have its
-// moment first), then dismiss for good the first time the person interacts
-// with anything, so it never lingers or feels naggy.
-function dismissLoreCta() {
-  document.getElementById("lore-cta")?.classList.remove("visible");
-  document.getElementById("btn-lore")?.classList.remove("lore-pulse");
-}
-const loreCtaTimer = setTimeout(() => {
-  const cta = document.getElementById("lore-cta");
-  if (!cta) return;
-  cta.classList.add("visible");
-  document.getElementById("btn-lore")?.classList.add("lore-pulse");
-  setTimeout(dismissLoreCta, 7000); // don't linger forever if ignored
-}, 2200);
-["pointerdown", "keydown"].forEach(evt =>
-  window.addEventListener(evt, () => { clearTimeout(loreCtaTimer); dismissLoreCta(); }, { once:true })
-);
+// Permanently visible (not a timed hint) — the person asked for it to stay
+// constant rather than fade in/out.
+document.getElementById("btn-lore")?.classList.add("lore-pulse");
 
 // ── Boot ──────────────────────────────────────
 // Runtime title auto-fit — a hard guarantee against overflow that doesn't depend
