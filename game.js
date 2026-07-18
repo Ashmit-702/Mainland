@@ -835,14 +835,29 @@ document.addEventListener("visibilitychange", () => {
 
   let joystickId = null, baseX = 0, baseY = 0;
   const RADIUS = 46;
+  // Current on/off state per axis, kept here (rather than re-derived from Keys
+  // each call) so we can apply hysteresis: a direction needs to pass a higher
+  // threshold to ENGAGE but only needs to drop below a lower threshold to stay
+  // engaged. Without this, a finger sitting near the old single 0.25 boundary
+  // would flicker a direction on/off every frame — that flicker is what read
+  // as "not smooth" compared to keyboard input, which has no such deadzone edge.
+  let active = { left:false, right:false, up:false, down:false };
+  const ON = 0.18, OFF = 0.10;
 
   function setKeysFromVector(dx, dy) {
-    Keys["ArrowLeft"]=Keys["a"]=Keys["KeyA"]  = dx < -0.25;
-    Keys["ArrowRight"]=Keys["d"]=Keys["KeyD"] = dx > 0.25;
-    Keys["ArrowUp"]=Keys["w"]=Keys["KeyW"]    = dy < -0.25;
-    Keys["ArrowDown"]=Keys["s"]=Keys["KeyS"]  = dy > 0.25;
+    active.left  = dx < -OFF && (active.left  || dx < -ON);
+    active.right = dx >  OFF && (active.right || dx >  ON);
+    active.up    = dy < -OFF && (active.up    || dy < -ON);
+    active.down  = dy >  OFF && (active.down  || dy >  ON);
+    Keys["ArrowLeft"]=Keys["a"]=Keys["KeyA"]   = active.left;
+    Keys["ArrowRight"]=Keys["d"]=Keys["KeyD"]  = active.right;
+    Keys["ArrowUp"]=Keys["w"]=Keys["KeyW"]     = active.up;
+    Keys["ArrowDown"]=Keys["s"]=Keys["KeyS"]   = active.down;
   }
-  function clearMoveKeys() { setKeysFromVector(0, 0); }
+  function clearMoveKeys() {
+    active = { left:false, right:false, up:false, down:false };
+    setKeysFromVector(0, 0);
+  }
 
   zone.addEventListener("touchstart", e => {
     Audio.init();
@@ -930,6 +945,8 @@ const MenuTheme = {
         .catch(() => {}); // file missing, or browser blocked it — stay silent
     };
     window.addEventListener("pointerdown", tryPlay, { once:true });
+    window.addEventListener("touchend", tryPlay, { once:true });
+    window.addEventListener("click", tryPlay, { once:true });
     window.addEventListener("keydown", tryPlay, { once:true });
   },
 
@@ -973,8 +990,20 @@ function fitGameTitle() {
   requestAnimationFrame(() => {
     const maxWidth = container.clientWidth - 8; // small safety margin
     let fontSize = parseFloat(getComputedStyle(el).fontSize);
+    // FIX: this used to step down 1px at a time capped at 60 iterations. The
+    // starting size (up to 112px) plus letter-spacing routinely overflowed by
+    // more than 60px on wide screens, so the loop ran out before the text
+    // actually fit — and with overflow:hidden on the title, the tail end
+    // (the right half of the final letter) got silently clipped, which is
+    // exactly what made "MAINLAND" render as "MAINLANI". Scaling directly by
+    // the width ratio converges immediately regardless of how far off the
+    // starting size is; a few 1px correction passes clean up rounding.
+    if (el.scrollWidth > maxWidth) {
+      fontSize *= maxWidth / el.scrollWidth;
+      el.style.fontSize = fontSize + "px";
+    }
     let guard = 0;
-    while (el.scrollWidth > maxWidth && fontSize > 18 && guard < 60) {
+    while (el.scrollWidth > maxWidth && fontSize > 18 && guard < 100) {
       fontSize -= 1;
       el.style.fontSize = fontSize + "px";
       guard++;
