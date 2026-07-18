@@ -10,6 +10,24 @@
   font-family:'Cinzel';src:url('fonts/Cinzel.woff2') format('woff2');
   font-weight:400 900;font-style:normal;font-display:swap;
 }
+/* FIX: the main-title bug ("MAINLAND" rendering with the D reduced to a
+   sliver) was neither a CSS clipping issue nor a filter/background-clip
+   interaction — both were ruled out and fixed already without changing the
+   symptom. What's left: Cinzel.woff2 is a VARIABLE font (weight axis
+   400–900), and the title is the only element on the page requesting the
+   extreme end of that axis (900) — everything else uses 700 or lower. A
+   corrupt/malformed variation delta for a single glyph at one extreme of an
+   axis is a known class of variable-font bug, and it only shows up in a
+   real browser's live interpolation, not in an offline static instancer
+   (which is why re-rendering the font in isolation looked fine). Baking a
+   real static (non-variable) instance at exactly weight 900 ahead of time
+   and serving that instead removes the live interpolation step for this
+   weight entirely, so the browser can't hit the same bug.
+*/
+@font-face{
+  font-family:'Cinzel Black Static';src:url('fonts/Cinzel-Black-Static.woff2') format('woff2');
+  font-weight:400;font-style:normal;font-display:swap;
+}
 @font-face{
   font-family:'Crimson Pro';src:url('fonts/CrimsonPro.woff2') format('woff2');
   font-weight:300 400;font-style:normal;font-display:swap;
@@ -86,7 +104,7 @@ body{
 }
 
 .game-title{
-  font-family:var(--font-d);font-size:clamp(2.2rem,10vw,5.5rem);font-weight:900;
+  font-family:'Cinzel Black Static',var(--font-d),serif;font-size:clamp(2.2rem,10vw,5.5rem);font-weight:400;
   letter-spacing:.08em;line-height:1.15;max-width:100%;
   white-space:nowrap;
   background:linear-gradient(160deg,#f0cc60 0%,#d4aa3a 40%,#a07820 100%);
