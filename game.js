@@ -1031,3 +1031,34 @@ window.addEventListener("orientationchange", () => {
 MenuTheme.init();
 initMenuParticles();
 animateMenuParticles();
+
+// ── Debug panel (opt-in via ?debug=1) ─────────
+// Shows real on-device diagnostics — actual touch detection result, actual
+// AudioContext state, and any uncaught JS errors — directly on screen. Meant
+// for screenshotting from a real phone when something's misbehaving there,
+// since remote guessing from code alone has a low hit rate for device- and
+// browser-specific issues.
+if (new URLSearchParams(location.search).get("debug") === "1") {
+  const panel = document.createElement("div");
+  panel.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,.88);color:#0f0;font:11px/1.5 monospace;padding:8px;max-height:45vh;overflow-y:auto;white-space:pre-wrap;pointer-events:none";
+  document.body.appendChild(panel);
+  const errors = [];
+  window.addEventListener("error", e => {
+    errors.push(`${e.message} (${e.filename?.split("/").pop()}:${e.lineno})`);
+    render();
+  });
+  function render() {
+    const ac = Audio.ctx;
+    panel.textContent =
+`UA: ${navigator.userAgent}
+touch-device class: ${document.body.classList.contains("touch-device")}
+ontouchstart: ${"ontouchstart" in window} | maxTouchPoints: ${navigator.maxTouchPoints} | pointer:coarse: ${window.matchMedia("(pointer: coarse)").matches}
+AudioContext: ${ac ? ac.state : "not created yet"}
+intro-theme el: ${document.getElementById("intro-theme") ? "found" : "MISSING"} | paused: ${document.getElementById("intro-theme")?.paused} | readyState: ${document.getElementById("intro-theme")?.readyState}
+viewport: ${window.innerWidth}x${window.innerHeight} | dpr: ${window.devicePixelRatio}
+errors (${errors.length}):
+${errors.join("\n") || "(none)"}`;
+  }
+  render();
+  setInterval(render, 500);
+}
