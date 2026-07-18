@@ -76,11 +76,18 @@ const EPILOGUE_TEXT =
 const Audio = {
   ctx: null,
   init() {
-    if (this.ctx) return;
-    try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    if (!this.ctx) {
+      try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    // FIX: mobile Safari/Chrome often create the AudioContext in a "suspended"
+    // state even when instantiated inside a user-gesture handler — every
+    // oscillator plays into silence until resume() is called explicitly.
+    // This is why SFX worked on desktop but were silent on phones.
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   },
   _play(freq, type, dur, vol=0.15, delay=0) {
     if (!this.ctx) return;
+    if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
     try {
       const o = this.ctx.createOscillator();
       const g = this.ctx.createGain();
