@@ -96,13 +96,19 @@ const Game = {
 
   async start() {
     Audio.init();
-    MenuTheme.duck();
     this.floorNumber = 1;
     this.player      = null;
     this._seenZones  = new Set();
     deathAlpha       = 0;
     deathActive      = false;
     await this.loadFloor(1, false);
+    // FIX: this used to duck the menu theme at the very top of start(), in the
+    // same instant as the click that first unlocks/fades it in — the fade-out
+    // always won that race, so the intro theme was never actually audible on
+    // the very first "Begin the Journey" click. Ducking after the floor has
+    // loaded and the screen has switched gives the fade-in a moment to
+    // actually be heard first, which is what "plays when I click" means.
+    MenuTheme.duck();
     Screens.show("game-screen");
     Screens.hideAllOverlays();
     _maybeSuggestLandscape();
