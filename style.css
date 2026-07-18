@@ -103,26 +103,27 @@ body{
   color:var(--gold-dim);text-transform:uppercase;
 }
 
-.game-title{
-  font-family:'Cinzel Black Static',var(--font-d),serif;font-size:clamp(2.2rem,10vw,5.5rem);font-weight:400;
-  letter-spacing:.08em;line-height:1.15;max-width:100%;
-  white-space:nowrap;
-  background:linear-gradient(160deg,#f0cc60 0%,#d4aa3a 40%,#a07820 100%);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  /* FIX: filter:drop-shadow() on an element using background-clip:text is a
-     known Chromium rendering trap — the element gets rasterized for the
-     filter pass and glyphs (especially wide ones like D/O/A) can come out
-     partially clipped, independent of the element's actual width. That's
-     what was silently eating the right half of the "D" in MAINLAND no
-     matter how much room the box actually had. text-shadow produces the
-     same glow and is safe to combine with background-clip:text. Also
-     dropped the hard overflow:hidden clip — with text-shadow this is no
-     longer needed to prevent clipping, and if the JS auto-fit below is ever
-     a few px off, the safe failure mode is "slightly wide", never a bitten
-     letter. */
-  text-shadow:0 0 30px rgba(212,170,58,.55),0 0 60px rgba(212,170,58,.3);
+.game-title-wrap{
+  width:clamp(220px, 78vw, 700px);max-width:100%;line-height:0;margin:0;
 }
-@supports not (background-clip:text){ .game-title{ color:var(--gold); } }
+/* FIX (final): every text-rendering theory — CSS overflow clipping,
+   filter+background-clip interaction, variable-font interpolation at
+   weight 900 — was individually ruled out and fixed with zero visible
+   change, then confirmed working correctly on mobile Chrome but still
+   broken on desktop Chrome/Brave. That desktop-only, large-size-only
+   pattern points at a known Chromium/Skia bug where `background-clip:text`
+   text masking can render corrupted glyphs specifically at large pixel
+   sizes (desktop's clamp() maxes out ~88px; mobile's stays much smaller,
+   which is why it never showed up there). The permanent fix is to stop
+   rendering the title as text+mask entirely: it's now a pre-baked SVG of
+   the exact same (verified-correct, HarfBuzz-shaped) glyph outlines,
+   filled with a gradient. There's no text, no font, no mask at runtime,
+   so this class of bug has nothing left to trigger on.
+*/
+.game-title-svg{
+  width:100%;height:auto;display:block;
+  filter:drop-shadow(0 0 30px rgba(212,170,58,.55)) drop-shadow(0 0 60px rgba(212,170,58,.3));
+}
 
 
 .title-divider{display:flex;align-items:center;gap:12px;width:100%;max-width:300px}
@@ -489,7 +490,6 @@ body.touch-device #touch-controls{display:block}
 @media (max-width:480px){
   .menu-content{padding:1.4rem 1.1rem;gap:1rem}
   .title-eyebrow{font-size:.62rem;letter-spacing:.2em}
-  .game-title{letter-spacing:.08em}
   .tagline{font-size:.98rem;line-height:1.7}
   .key-legend{gap:.5rem .8rem;font-size:.72rem}
   .btn-primary{padding:.75rem 2rem;font-size:.76rem}
@@ -520,7 +520,6 @@ body.touch-device #touch-controls{display:block}
   #touch-joystick-zone{height:70vh}
 }
 @media (max-width:360px){
-  .game-title{font-size:11vw;letter-spacing:.05em}
   .title-eyebrow{font-size:.56rem;letter-spacing:.16em}
   .key-legend{font-size:.66rem;gap:.4rem .6rem}
   .tagline{font-size:.9rem}
