@@ -812,6 +812,12 @@ document.getElementById("btn-levelup-ok")?.addEventListener("click", () => {
 
 document.getElementById("btn-pause")?.addEventListener("click", () => Game._togglePause());
 
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && Audio.ctx && Audio.ctx.state === "suspended") {
+    Audio.ctx.resume().catch(() => {});
+  }
+});
+
 // ── Touch controls (mobile) ───────────────────
 (function setupTouchControls() {
   // Belt-and-suspenders detection: some Android WebViews/in-app browsers report
@@ -839,6 +845,7 @@ document.getElementById("btn-pause")?.addEventListener("click", () => Game._togg
   function clearMoveKeys() { setKeysFromVector(0, 0); }
 
   zone.addEventListener("touchstart", e => {
+    Audio.init();
     const t = e.changedTouches[0];
     joystickId = t.identifier;
     const rect = base.getBoundingClientRect();
