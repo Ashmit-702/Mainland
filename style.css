@@ -87,12 +87,25 @@ body{
 
 .game-title{
   font-family:var(--font-d);font-size:clamp(2.2rem,10vw,5.5rem);font-weight:900;
-  letter-spacing:.08em;line-height:1;max-width:100%;
-  white-space:nowrap;overflow:hidden;
+  letter-spacing:.08em;line-height:1.15;max-width:100%;
+  white-space:nowrap;
   background:linear-gradient(160deg,#f0cc60 0%,#d4aa3a 40%,#a07820 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-  filter:drop-shadow(0 0 40px rgba(212,170,58,.4));
+  /* FIX: filter:drop-shadow() on an element using background-clip:text is a
+     known Chromium rendering trap — the element gets rasterized for the
+     filter pass and glyphs (especially wide ones like D/O/A) can come out
+     partially clipped, independent of the element's actual width. That's
+     what was silently eating the right half of the "D" in MAINLAND no
+     matter how much room the box actually had. text-shadow produces the
+     same glow and is safe to combine with background-clip:text. Also
+     dropped the hard overflow:hidden clip — with text-shadow this is no
+     longer needed to prevent clipping, and if the JS auto-fit below is ever
+     a few px off, the safe failure mode is "slightly wide", never a bitten
+     letter. */
+  text-shadow:0 0 30px rgba(212,170,58,.55),0 0 60px rgba(212,170,58,.3);
 }
+@supports not (background-clip:text){ .game-title{ color:var(--gold); } }
+
 
 .title-divider{display:flex;align-items:center;gap:12px;width:100%;max-width:300px}
 .title-divider span:first-child,.title-divider span:last-child{
