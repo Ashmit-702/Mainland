@@ -86,8 +86,8 @@ body{
 }
 
 .game-title{
-  font-family:var(--font-d);font-size:clamp(2.2rem,13vw,7rem);font-weight:900;
-  letter-spacing:.14em;line-height:1;max-width:100%;
+  font-family:var(--font-d);font-size:clamp(2.2rem,10vw,5.5rem);font-weight:900;
+  letter-spacing:.08em;line-height:1;max-width:100%;
   white-space:nowrap;overflow:hidden;
   background:linear-gradient(160deg,#f0cc60 0%,#d4aa3a 40%,#a07820 100%);
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
