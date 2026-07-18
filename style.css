@@ -426,6 +426,33 @@ kbd{
 }
 .btn-secondary:hover{color:var(--gold-light);border-color:var(--gold-dim);background:rgba(212,170,58,.06)}
 
+/* ── Lore call-to-action ─────────────────────────
+   Draws the eye to "The Legend" after a short delay, encouraging people to
+   open it — which also happens to be a click, so it doubles as an easy,
+   discoverable way to unlock the intro audio if the very first tap somehow
+   missed (e.g. landed exactly on nothing). Fades in late so it doesn't
+   compete with the title for attention, and disappears for good once
+   clicked or after a little while so it never feels naggy. */
+.lore-cta-wrap{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:20px}
+.lore-cta{
+  position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%) translateY(-4px);
+  font-family:var(--font-b);font-style:italic;font-size:.78rem;color:var(--gold-light);
+  white-space:nowrap;opacity:0;pointer-events:none;
+  display:flex;align-items:center;gap:5px;
+  transition:opacity .5s ease, transform .5s ease;
+}
+.lore-cta.visible{opacity:.9;transform:translateX(-50%) translateY(0)}
+.lore-cta-arrow{
+  display:inline-block;animation:loreCtaBounce 1.4s ease-in-out infinite;
+  filter:drop-shadow(0 0 4px rgba(212,170,58,.6));
+}
+@keyframes loreCtaBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+#btn-lore.lore-pulse{animation:loreBtnPulse 1.8s ease-in-out 3}
+@keyframes loreBtnPulse{
+  0%,100%{border-color:var(--border2);box-shadow:0 0 0 rgba(212,170,58,0)}
+  50%{border-color:var(--gold-dim);box-shadow:0 0 16px rgba(212,170,58,.35)}
+}
+
 /* ── Overlay / level-up entrance animation ──────*/
 @keyframes overlayFadeIn{from{opacity:0}to{opacity:1}}
 .overlay-box{animation:overlayBoxIn .4s cubic-bezier(.2,.9,.3,1.2)}
