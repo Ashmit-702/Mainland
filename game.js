@@ -6,11 +6,19 @@ const menuCanvas = document.getElementById("menu-canvas");
 const mctx = menuCanvas ? menuCanvas.getContext("2d") : null;
 
 function resizeCanvas() {
-  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-  if (menuCanvas) { menuCanvas.width = window.innerWidth; menuCanvas.height = window.innerHeight; }
+  // visualViewport tracks the actual visible area on mobile (excludes the
+  // address bar/keyboard), which is more accurate than innerWidth/innerHeight
+  // when the browser chrome shows/hides — prevents the canvas and HUD from
+  // being sized larger than what's actually visible.
+  const w = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  canvas.width = w; canvas.height = h;
+  if (menuCanvas) { menuCanvas.width = w; menuCanvas.height = h; }
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 100));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
 
 // ── Menu particles ────────────────────────────
 let menuParticles = [];
@@ -806,7 +814,12 @@ document.getElementById("btn-pause")?.addEventListener("click", () => Game._togg
 
 // ── Touch controls (mobile) ───────────────────
 (function setupTouchControls() {
-  const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+  // Belt-and-suspenders detection: some Android WebViews/in-app browsers report
+  // ontouchstart/maxTouchPoints inconsistently, so a coarse-pointer media check
+  // is included too. CSS also has its own @media(pointer:coarse) fallback so
+  // controls still appear even if this JS check somehow misses.
+  const isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0 ||
+                   (window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
   if (isTouch) document.body.classList.add("touch-device");
 
   const zone  = document.getElementById("touch-joystick-zone");
