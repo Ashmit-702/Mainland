@@ -54,12 +54,19 @@ body{
 /* ── SCREENS ────────────────────────── */
 .screen{position:fixed;inset:0;display:none}
 .screen.active{display:flex}
+/* FIX: screens were overflow:hidden with no scroll fallback, so on any viewport
+   shorter than the stacked content (common on phones, and short/zoomed laptop
+   windows) content simply got clipped top and/or bottom with no way to reach it.
+   Menu and lore screens now scroll instead of silently cutting content off. */
+#menu-screen,#lore-screen{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#menu-screen{justify-content:flex-start}
+#menu-screen .menu-content{margin:auto 0}
 /* FIX: overlay screens (gameover/victory/floor-clear/loading/levelup) are toggled via
    the .hidden class only — they never receive .active. Without this rule they matched
    only the base .screen{display:none} and could never appear, which is why the restart
    button never showed up. .overlay now sets its own display, later in the cascade than
    .screen so it wins at equal specificity once .hidden is removed. */
-.overlay{display:flex;align-items:center;justify-content:center;background:rgba(4,2,12,0.92);backdrop-filter:blur(8px);z-index:100;animation:overlayFadeIn .35s ease}
+.overlay{display:flex;align-items:center;justify-content:center;background:rgba(4,2,12,0.92);backdrop-filter:blur(8px);z-index:100;animation:overlayFadeIn .35s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 0}
 .overlay.hidden{display:none!important}
 
 /* ── MENU ───────────────────────────── */
@@ -180,14 +187,15 @@ kbd{
 @media (max-width:560px){ .lore-grid{grid-template-columns:1fr} .lore-box{padding:1.6rem 1.4rem} }
 
 /* ── GAME CANVAS ────────────────────── */
-#game-screen{background:#050310;width:100vw;height:100vh;overflow:hidden}
-#game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh}
+#game-screen{background:#050310;width:100vw;height:100vh;height:100dvh;overflow:hidden}
+#game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh;height:100dvh}
 
 /* ── HUD ────────────────────────────── */
 #hud{
   position:absolute;top:0;left:0;right:0;
   display:flex;align-items:flex-start;justify-content:space-between;
-  padding:12px 14px;pointer-events:none;z-index:10;
+  padding:calc(12px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 12px calc(14px + env(safe-area-inset-left));
+  pointer-events:none;z-index:10;
 }
 #hud-left{
   background:rgba(8,6,18,.88);
@@ -252,7 +260,7 @@ kbd{
 
 /* ── DASH BAR ───────────────────────── */
 #dash-bar-wrap{
-  position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  position:absolute;bottom:calc(36px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
   display:flex;align-items:center;gap:8px;pointer-events:none;
 }
 #dash-bar-wrap .bar-label{font-size:.6rem;letter-spacing:.12em;color:var(--text-dim)}
@@ -261,8 +269,8 @@ kbd{
 
 /* ── BOSS BAR ───────────────────────── */
 #boss-bar-wrap{
-  position:absolute;top:14px;left:50%;transform:translateX(-50%);
-  width:360px;text-align:center;z-index:11;pointer-events:none;
+  position:absolute;top:calc(14px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  width:min(360px,calc(100vw - 32px));text-align:center;z-index:11;pointer-events:none;
 }
 #boss-name-label{
   font-family:var(--font-d);font-size:.78rem;letter-spacing:.2em;
@@ -275,7 +283,7 @@ kbd{
 /* ── DIALOGUE ───────────────────────── */
 #dialogue-wrap{
   position:absolute;
-  bottom:28px;left:50%;transform:translateX(-50%);
+  bottom:calc(28px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
   width:min(700px,calc(100vw - 28px));
   background:rgba(8,6,18,.97);
   border:1px solid var(--gold-dim);border-radius:8px;
@@ -356,6 +364,7 @@ kbd{
   border-radius:12px;padding:2.5rem 3rem;max-width:420px;width:90%;
   border-top:1px solid var(--gold-dim);
   box-shadow:0 0 80px rgba(0,0,0,.8);
+  margin:auto;flex-shrink:0;
 }
 .levelup-box{border-top-color:var(--gold)}
 .overlay-icon{font-size:2.5rem;line-height:1}
@@ -398,13 +407,19 @@ kbd{
 /* ── Touch controls (mobile) ────────────────────*/
 #touch-controls{display:none;position:absolute;inset:0;z-index:20;pointer-events:none}
 body.touch-device #touch-controls{display:block}
+/* FIX: JS feature-detection (ontouchstart/maxTouchPoints) can be unreliable on
+   some Android WebViews and in-app browsers, which meant the move/attack
+   controls silently never appeared. This CSS-only fallback guarantees the
+   controls show on any coarse-pointer (touch) device regardless of what the
+   JS check decided, without waiting for JS to run at all. */
+@media (pointer:coarse){ #touch-controls{display:block} }
 #touch-joystick-zone{
   position:absolute;left:0;bottom:0;width:45vw;height:45vh;
   pointer-events:all;
 }
 #touch-joystick-base{
-  position:absolute;left:32px;bottom:32px;width:100px;height:100px;border-radius:50%;
-  background:rgba(255,255,255,.05);border:2px solid rgba(212,170,58,.35);
+  position:absolute;left:calc(32px + env(safe-area-inset-left));bottom:calc(32px + env(safe-area-inset-bottom));width:100px;height:100px;border-radius:50%;
+  background:rgba(255,255,255,.08);border:2px solid rgba(212,170,58,.45);
   backdrop-filter:blur(4px);
 }
 #touch-joystick-stick{
@@ -414,7 +429,7 @@ body.touch-device #touch-controls{display:block}
 }
 #touch-joystick-base.active #touch-joystick-stick{background:rgba(212,170,58,.85)}
 #touch-buttons{
-  position:absolute;right:22px;bottom:26px;width:170px;height:170px;pointer-events:all;
+  position:absolute;right:calc(22px + env(safe-area-inset-right));bottom:calc(26px + env(safe-area-inset-bottom));width:170px;height:170px;pointer-events:all;
 }
 .touch-btn{
   position:absolute;width:60px;height:60px;border-radius:50%;
