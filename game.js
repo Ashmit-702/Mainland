@@ -943,17 +943,34 @@ const MenuTheme = {
     if (!this.el) return;
     this.el.volume = 0;
     this.el.addEventListener("ended", () => { this.finished = true; });
+    // FIX: this used to set `started = true` on the very first gesture event
+    // seen (pointerdown fires before touchend on mobile) and never try again,
+    // even if that specific attempt was rejected. Some mobile browsers only
+    // treat a completed tap (touchend/click) as valid for unlocking audio,
+    // not the initial touch (pointerdown) — so the first, invalid-on-mobile
+    // attempt was permanently blocking the second, valid one from retrying.
+    // Now it only locks in once play() actually succeeds, and keeps
+    // listening on every gesture type until one works.
     const tryPlay = () => {
       if (this.started) return;
-      this.started = true;
       this.el.play()
-        .then(() => _fadeAudioEl(this.el, this.muted ? 0 : 0.55, 1200))
-        .catch(() => {}); // file missing, or browser blocked it — stay silent
+        .then(() => {
+          this.started = true;
+          _fadeAudioEl(this.el, this.muted ? 0 : 0.55, 1200);
+          cleanup();
+        })
+        .catch(() => {}); // this gesture type wasn't accepted — leave listeners active for the next one
     };
-    window.addEventListener("pointerdown", tryPlay, { once:true });
-    window.addEventListener("touchend", tryPlay, { once:true });
-    window.addEventListener("click", tryPlay, { once:true });
-    window.addEventListener("keydown", tryPlay, { once:true });
+    function cleanup() {
+      window.removeEventListener("pointerdown", tryPlay);
+      window.removeEventListener("touchend", tryPlay);
+      window.removeEventListener("click", tryPlay);
+      window.removeEventListener("keydown", tryPlay);
+    }
+    window.addEventListener("pointerdown", tryPlay);
+    window.addEventListener("touchend", tryPlay);
+    window.addEventListener("click", tryPlay);
+    window.addEventListener("keydown", tryPlay);
   },
 
   duck()   { _fadeAudioEl(this.el, 0, 700); },
@@ -974,6 +991,7 @@ document.getElementById("btn-mute-intro")?.addEventListener("click", () => MenuT
 
 document.getElementById("btn-lore")?.addEventListener("click", () => {
   Screens.showOverlay("lore-screen");
+  dismissLoreCta();
 });
 document.getElementById("btn-lore-close")?.addEventListener("click", () => {
   Screens.hideOverlay("lore-screen");
@@ -983,6 +1001,25 @@ document.getElementById("btn-lore-begin")?.addEventListener("click", () => {
   Game.start();
 });
 document.getElementById("btn-dialogue-close")?.addEventListener("click", () => Game._endDialogue());
+
+// ── Lore call-to-action ────────────────────────
+// Reveal a couple seconds after landing on the menu (let the title have its
+// moment first), then dismiss for good the first time the person interacts
+// with anything, so it never lingers or feels naggy.
+function dismissLoreCta() {
+  document.getElementById("lore-cta")?.classList.remove("visible");
+  document.getElementById("btn-lore")?.classList.remove("lore-pulse");
+}
+const loreCtaTimer = setTimeout(() => {
+  const cta = document.getElementById("lore-cta");
+  if (!cta) return;
+  cta.classList.add("visible");
+  document.getElementById("btn-lore")?.classList.add("lore-pulse");
+  setTimeout(dismissLoreCta, 7000); // don't linger forever if ignored
+}, 2200);
+["pointerdown", "keydown"].forEach(evt =>
+  window.addEventListener(evt, () => { clearTimeout(loreCtaTimer); dismissLoreCta(); }, { once:true })
+);
 
 // ── Boot ──────────────────────────────────────
 // Runtime title auto-fit — a hard guarantee against overflow that doesn't depend
