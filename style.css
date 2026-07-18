@@ -435,20 +435,19 @@ kbd{
    clicked or after a little while so it never feels naggy. */
 .lore-cta-wrap{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:34px}
 .lore-cta{
-  position:absolute;top:calc(100% + 10px);left:50%;transform:translateX(-50%);
-  font-family:var(--font-b);font-weight:600;font-size:.86rem;color:#1a1206;
-  white-space:nowrap;opacity:1;pointer-events:none;
-  display:flex;align-items:center;gap:6px;
-  background:linear-gradient(160deg,#f8dc80,#d4aa3a);
-  padding:.5rem 1.1rem;border-radius:999px;
-  box-shadow:0 4px 18px rgba(212,170,58,.5),0 0 0 1px rgba(255,230,150,.4) inset;
-  animation:loreCtaFloat 1.6s ease-in-out infinite;
+  position:absolute;top:calc(100% + 12px);left:50%;transform:translateX(-50%);
+  font-family:var(--font-d);font-weight:700;font-size:.72rem;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--gold-light);white-space:nowrap;opacity:1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(24,18,44,.95),rgba(16,12,32,.95));
+  border:1px solid var(--gold);border-radius:3px;
+  padding:.6rem 1.3rem;
+  box-shadow:0 0 0 1px rgba(212,170,58,.15) inset,0 6px 20px rgba(0,0,0,.5);
+  animation:loreCtaGlow 2.2s ease-in-out infinite;
 }
-@keyframes loreCtaFloat{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-5px)}}
-.lore-cta-arrow{
-  display:inline-block;font-size:1rem;animation:loreCtaBounce 1.4s ease-in-out infinite;
+@keyframes loreCtaGlow{
+  0%,100%{box-shadow:0 0 0 1px rgba(212,170,58,.15) inset,0 6px 20px rgba(0,0,0,.5),0 0 0 rgba(240,204,96,0)}
+  50%{box-shadow:0 0 0 1px rgba(212,170,58,.3) inset,0 6px 20px rgba(0,0,0,.5),0 0 18px rgba(240,204,96,.5)}
 }
-@keyframes loreCtaBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
 #btn-lore.lore-pulse{animation:loreBtnPulse 1.8s ease-in-out infinite}
 @keyframes loreBtnPulse{
   0%,100%{border-color:var(--border2);box-shadow:0 0 0 rgba(212,170,58,0)}
@@ -519,6 +518,7 @@ body.touch-device #touch-controls{display:block}
 @media (max-width:480px){
   .menu-content{padding:1.4rem 1.1rem;gap:1rem}
   .title-eyebrow{font-size:.62rem;letter-spacing:.2em}
+  .lore-cta{white-space:normal;text-align:center;font-size:.62rem;letter-spacing:.1em;max-width:88vw;padding:.55rem 1rem}
   .tagline{font-size:.98rem;line-height:1.7}
   .key-legend{gap:.5rem .8rem;font-size:.72rem}
   .btn-primary{padding:.75rem 2rem;font-size:.76rem}
