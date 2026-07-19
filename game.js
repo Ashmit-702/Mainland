@@ -6,19 +6,31 @@ const menuCanvas = document.getElementById("menu-canvas");
 const mctx = menuCanvas ? menuCanvas.getContext("2d") : null;
 
 function resizeCanvas() {
-  // visualViewport tracks the actual visible area on mobile (excludes the
-  // address bar/keyboard), which is more accurate than innerWidth/innerHeight
-  // when the browser chrome shows/hides — prevents the canvas and HUD from
-  // being sized larger than what's actually visible.
-  const w = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
-  const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  // FIX: calling visualViewport.width/height synchronously at page-load time
+  // (before the browser has necessarily finished computing it) could return
+  // 0 or a bad value on some desktop configs — e.g. Windows display scaling
+  // — which zeroed out the canvas entirely: game logic kept running fine
+  // (hence audio worked) but nothing had any area to draw onto, producing a
+  // black screen. innerWidth/innerHeight is always reliable and is what
+  // this used before; visualViewport is now only used for later resize
+  // events (address bar show/hide on mobile), never for the initial size.
+  const w = window.innerWidth;
+  const h = window.innerHeight;
   canvas.width = w; canvas.height = h;
   if (menuCanvas) { menuCanvas.width = w; menuCanvas.height = h; }
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 100));
-if (window.visualViewport) window.visualViewport.addEventListener("resize", resizeCanvas);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    const w = window.visualViewport.width, h = window.visualViewport.height;
+    if (w > 0 && h > 0) { // guard against the same zero-value issue on any later firing
+      canvas.width = w; canvas.height = h;
+      if (menuCanvas) { menuCanvas.width = w; menuCanvas.height = h; }
+    }
+  });
+}
 
 // ── Menu particles ────────────────────────────
 let menuParticles = [];
