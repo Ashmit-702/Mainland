@@ -112,7 +112,6 @@ const Game = {
     Screens.show("game-screen");
     Screens.hideAllOverlays();
     _maybeSuggestLandscape();
-    setTimeout(() => this._playPrologue(), 500);
     if (!this._loopRunning) {
       this._loopRunning = true;
       requestAnimationFrame(() => this.loop());
