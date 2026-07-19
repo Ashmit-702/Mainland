@@ -65,9 +65,17 @@ class Dungeon {
     ctx.fillRect(0, 0, W, H);
 
     // Visible tile range
-    const c0 = Math.max(0, Math.floor(camX / TILE) - 1);
+    // FIX: c0/r0 were only clamped on the lower bound (Math.max(0, ...)),
+    // never against this.cols/this.rows on the upper end. If the camera
+    // ever sat far enough right/down, c0 could end up larger than c1 (which
+    // *was* properly clamped), making the loop below run zero times —
+    // drawing nothing but the flat wall-colour fillRect above it, forever,
+    // with no error thrown (an inverted loop range just silently does
+    // nothing). That's a fully black-looking screen with the game otherwise
+    // running completely normally underneath it.
+    const c0 = Math.min(this.cols, Math.max(0, Math.floor(camX / TILE) - 1));
     const c1 = Math.min(this.cols, Math.ceil((camX + W) / TILE) + 2);
-    const r0 = Math.max(0, Math.floor(camY / TILE) - 1);
+    const r0 = Math.min(this.rows, Math.max(0, Math.floor(camY / TILE) - 1));
     const r1 = Math.min(this.rows, Math.ceil((camY + H) / TILE) + 2);
 
     for (let gy = r0; gy < r1; gy++) {
