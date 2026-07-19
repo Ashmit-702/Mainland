@@ -1130,11 +1130,17 @@ if (new URLSearchParams(location.search).get("debug") === "1") {
     // didn't get its "hidden" class re-added). Two direct checks for that:
     const visibleOverlays = [...document.querySelectorAll(".overlay:not(.hidden)")]
       .map(el => el.id || el.className).join(", ") || "(none)";
-    const topEl = document.elementFromPoint(innerWidth/2, innerHeight/2);
-    const topElInfo = topEl
-      ? `<${topEl.tagName.toLowerCase()} id="${topEl.id}" class="${topEl.className}">`
-      : "(none)";
-    const topElStyle = topEl ? getComputedStyle(topEl) : null;
+    // FIX: elementFromPoint() skips elements with pointer-events:none (which
+    // the canvas has), so it was never a reliable check here — it landed on
+    // <body> regardless of whether the canvas was actually rendering.
+    // Querying the canvas's own computed style directly is the real check.
+    const canvasStyle = getComputedStyle(canvas);
+    const gameScreenStyle = getComputedStyle(document.getElementById("game-screen"));
+    let pixelSample = "n/a";
+    try {
+      const p = ctx.getImageData(innerWidth/2, innerHeight/2, 1, 1).data;
+      pixelSample = `rgba(${p[0]},${p[1]},${p[2]},${p[3]})`;
+    } catch (e) { pixelSample = `read failed: ${e.message}`; }
     panel.textContent =
 `UA: ${navigator.userAgent}
 touch-device class: ${document.body.classList.contains("touch-device")}
@@ -1146,8 +1152,9 @@ active screen: ${activeScreen}
 Game.state: ${typeof Game !== "undefined" ? Game.state : "Game undefined"} | dungeon: ${typeof Game !== "undefined" && Game.dungeon ? "loaded" : "null"} | player: ${typeof Game !== "undefined" && Game.player ? "loaded" : "null"}
 canvas: ${canvas.width}x${canvas.height} | Camera: ${Camera.x},${Camera.y} | player pos: ${Game.player ? `${Game.player.x},${Game.player.y}` : "n/a"}
 visible (non-hidden) overlays: ${visibleOverlays}
-element at screen center: ${topElInfo}
-  that element's: opacity=${topElStyle?.opacity} display=${topElStyle?.display} bg=${topElStyle?.backgroundColor} z-index=${topElStyle?.zIndex}
+CANVAS computed style: display=${canvasStyle.display} visibility=${canvasStyle.visibility} opacity=${canvasStyle.opacity} width=${canvasStyle.width} height=${canvasStyle.height} filter=${canvasStyle.filter} transform=${canvasStyle.transform}
+#game-screen computed style: display=${gameScreenStyle.display} opacity=${gameScreenStyle.opacity} visibility=${gameScreenStyle.visibility}
+actual pixel at screen center (read from canvas itself): ${pixelSample}
 errors (${errors.length}):
 ${errors.join("\n") || "(none)"}`;
   }
