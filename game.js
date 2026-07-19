@@ -1082,6 +1082,17 @@ if (new URLSearchParams(location.search).get("debug") === "1") {
     errors.push(`Promise: ${e.reason?.message || e.reason}`);
     render();
   });
+  // FIX: Game.update() wraps its own body in try/catch and only
+  // console.error()s on failure so a bad frame doesn't freeze the whole
+  // loop — but that also means a per-frame crash (e.g. camera never getting
+  // positioned) never becomes an uncaught error and was invisible to this
+  // panel. Hooking console.error surfaces it too.
+  const origConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    errors.push(`console.error: ${args.map(a => a?.message || a?.stack || String(a)).join(" ")}`);
+    render();
+    origConsoleError(...args);
+  };
   function render() {
     const ac = Audio.ctx;
     const activeScreen = document.querySelector(".screen.active")?.id || "(none active)";
@@ -1094,6 +1105,7 @@ intro-theme el: ${document.getElementById("intro-theme") ? "found" : "MISSING"} 
 viewport: ${window.innerWidth}x${window.innerHeight} | dpr: ${window.devicePixelRatio}
 active screen: ${activeScreen}
 Game.state: ${typeof Game !== "undefined" ? Game.state : "Game undefined"} | dungeon: ${typeof Game !== "undefined" && Game.dungeon ? "loaded" : "null"} | player: ${typeof Game !== "undefined" && Game.player ? "loaded" : "null"}
+canvas: ${canvas.width}x${canvas.height} | Camera: ${Camera.x},${Camera.y} | player pos: ${Game.player ? `${Game.player.x},${Game.player.y}` : "n/a"}
 errors (${errors.length}):
 ${errors.join("\n") || "(none)"}`;
   }
