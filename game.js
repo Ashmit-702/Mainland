@@ -790,8 +790,15 @@ const Game = {
 // ── Camera ────────────────────────────────────
 const Camera = { x:0, y:0 };
 function cameraFollow(t) {
-  Camera.x = t.x - canvas.width  / 2;
-  Camera.y = t.y - canvas.height / 2;
+  const nx = t.x - canvas.width  / 2;
+  const ny = t.y - canvas.height / 2;
+  // FIX: defense in depth — if a player-position calculation ever produces
+  // NaN, letting it into Camera would silently break every subsequent draw
+  // calculation (NaN comparisons are always false, so culling loops would
+  // draw nothing, forever). Keeping the last known-good position instead
+  // means a single bad frame can't permanently blank the screen.
+  if (Number.isFinite(nx)) Camera.x = nx;
+  if (Number.isFinite(ny)) Camera.y = ny;
 }
 
 // ── Keyboard ─────────────────────────────────
