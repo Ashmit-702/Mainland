@@ -1124,6 +1124,17 @@ if (new URLSearchParams(location.search).get("debug") === "1") {
   function render() {
     const ac = Audio.ctx;
     const activeScreen = document.querySelector(".screen.active")?.id || "(none active)";
+    // FIX: canvas size, camera, and player position all check out as valid —
+    // so if there's still nothing visible, the most likely remaining cause
+    // is something else visually covering the canvas (e.g. an overlay that
+    // didn't get its "hidden" class re-added). Two direct checks for that:
+    const visibleOverlays = [...document.querySelectorAll(".overlay:not(.hidden)")]
+      .map(el => el.id || el.className).join(", ") || "(none)";
+    const topEl = document.elementFromPoint(innerWidth/2, innerHeight/2);
+    const topElInfo = topEl
+      ? `<${topEl.tagName.toLowerCase()} id="${topEl.id}" class="${topEl.className}">`
+      : "(none)";
+    const topElStyle = topEl ? getComputedStyle(topEl) : null;
     panel.textContent =
 `UA: ${navigator.userAgent}
 touch-device class: ${document.body.classList.contains("touch-device")}
@@ -1134,6 +1145,9 @@ viewport: ${window.innerWidth}x${window.innerHeight} | dpr: ${window.devicePixel
 active screen: ${activeScreen}
 Game.state: ${typeof Game !== "undefined" ? Game.state : "Game undefined"} | dungeon: ${typeof Game !== "undefined" && Game.dungeon ? "loaded" : "null"} | player: ${typeof Game !== "undefined" && Game.player ? "loaded" : "null"}
 canvas: ${canvas.width}x${canvas.height} | Camera: ${Camera.x},${Camera.y} | player pos: ${Game.player ? `${Game.player.x},${Game.player.y}` : "n/a"}
+visible (non-hidden) overlays: ${visibleOverlays}
+element at screen center: ${topElInfo}
+  that element's: opacity=${topElStyle?.opacity} display=${topElStyle?.display} bg=${topElStyle?.backgroundColor} z-index=${topElStyle?.zIndex}
 errors (${errors.length}):
 ${errors.join("\n") || "(none)"}`;
   }
