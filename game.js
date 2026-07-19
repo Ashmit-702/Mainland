@@ -123,6 +123,7 @@ const Game = {
     MenuTheme.duck();
     Screens.show("game-screen");
     Screens.hideAllOverlays();
+    resizeCanvas(); // FIX: force-correct canvas size right as it becomes visible, not just at page load
     _maybeSuggestLandscape();
     if (!this._loopRunning) {
       this._loopRunning = true;
@@ -484,6 +485,14 @@ const Game = {
   },
 
   draw() {
+    // FIX: if canvas ever ends up with a zero/invalid size (whatever the
+    // cause — a bad resize timing, a dropped event, anything), nothing
+    // after this point would ever be visible again, permanently, with no
+    // way to recover — game logic and audio keep running fine (they don't
+    // depend on canvas size) while the screen just stays black forever.
+    // Checking and correcting it on every single frame makes that class of
+    // bug self-healing instead of a permanent dead end.
+    if (canvas.width === 0 || canvas.height === 0) resizeCanvas();
     ctx.fillStyle = "#050310";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (!this.dungeon) return;
