@@ -1071,11 +1071,20 @@ if (new URLSearchParams(location.search).get("debug") === "1") {
   document.body.appendChild(panel);
   const errors = [];
   window.addEventListener("error", e => {
-    errors.push(`${e.message} (${e.filename?.split("/").pop()}:${e.lineno})`);
+    errors.push(`JS: ${e.message} (${e.filename?.split("/").pop()}:${e.lineno})`);
+    render();
+  });
+  // FIX: Game.start() is an async function — an error thrown anywhere inside
+  // it (e.g. during the floor-load fetch chain) becomes an unhandled promise
+  // rejection, which window.onerror does NOT catch. That's the likely gap
+  // that let a black-screen-on-start bug hide from the first debug panel.
+  window.addEventListener("unhandledrejection", e => {
+    errors.push(`Promise: ${e.reason?.message || e.reason}`);
     render();
   });
   function render() {
     const ac = Audio.ctx;
+    const activeScreen = document.querySelector(".screen.active")?.id || "(none active)";
     panel.textContent =
 `UA: ${navigator.userAgent}
 touch-device class: ${document.body.classList.contains("touch-device")}
@@ -1083,6 +1092,8 @@ ontouchstart: ${"ontouchstart" in window} | maxTouchPoints: ${navigator.maxTouch
 AudioContext: ${ac ? ac.state : "not created yet"}
 intro-theme el: ${document.getElementById("intro-theme") ? "found" : "MISSING"} | paused: ${document.getElementById("intro-theme")?.paused} | readyState: ${document.getElementById("intro-theme")?.readyState}
 viewport: ${window.innerWidth}x${window.innerHeight} | dpr: ${window.devicePixelRatio}
+active screen: ${activeScreen}
+Game.state: ${typeof Game !== "undefined" ? Game.state : "Game undefined"} | dungeon: ${typeof Game !== "undefined" && Game.dungeon ? "loaded" : "null"} | player: ${typeof Game !== "undefined" && Game.player ? "loaded" : "null"}
 errors (${errors.length}):
 ${errors.join("\n") || "(none)"}`;
   }
