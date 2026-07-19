@@ -220,7 +220,7 @@ kbd{
 
 /* ── GAME CANVAS ────────────────────── */
 #game-screen{background:#050310;width:100vw;height:100vh;height:100dvh;overflow:hidden}
-#game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh;height:100dvh}
+#game-canvas{display:block;position:absolute;top:0;left:0;width:100vw;height:100vh;height:100dvh;transform:translateZ(0);will-change:transform}
 
 /* ── HUD ────────────────────────────── */
 #hud{
